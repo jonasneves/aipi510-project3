@@ -252,8 +252,10 @@ def predict(args):
                     data[col] = 1
 
     # Build feature vector matching model's expected features
+    # Deduplicate feature names to avoid reindex errors
+    unique_feature_names = list(dict.fromkeys(predictor.feature_names))
     X = pd.DataFrame(index=[0])
-    for col in predictor.feature_names:
+    for col in unique_feature_names:
         if col in data.columns:
             val = data[col].iloc[0]
             X[col] = pd.to_numeric(val, errors='coerce') if not isinstance(val, (int, float)) else val

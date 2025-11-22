@@ -94,7 +94,8 @@ class SalaryPredictor:
         print(f"Training samples: {len(X_train)}")
         print(f"Features: {len(X_train.columns)}")
 
-        self.feature_names = list(X_train.columns)
+        # Deduplicate feature names to avoid reindex errors during prediction
+        self.feature_names = list(dict.fromkeys(X_train.columns))
 
         # Initialize model
         self.model = xgb.XGBRegressor(**self.params)
@@ -147,8 +148,14 @@ class SalaryPredictor:
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
 
+        # Remove duplicate columns from input DataFrame
+        X = X.loc[:, ~X.columns.duplicated()]
+
+        # Deduplicate feature names (in case loaded model has duplicates)
+        unique_features = list(dict.fromkeys(self.feature_names))
+
         # Ensure feature columns match training
-        X = X.reindex(columns=self.feature_names, fill_value=0)
+        X = X.reindex(columns=unique_features, fill_value=0)
 
         return self.model.predict(X)
 
@@ -415,7 +422,8 @@ class SalaryPredictor:
             save_data = pickle.load(f)
 
         self.model = save_data["model"]
-        self.feature_names = save_data["feature_names"]
+        # Deduplicate feature names to avoid reindex errors during prediction
+        self.feature_names = list(dict.fromkeys(save_data["feature_names"]))
         self.feature_importance = save_data["feature_importance"]
         self.training_metrics = save_data["training_metrics"]
         self.params = save_data["params"]
