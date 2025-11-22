@@ -5,6 +5,11 @@ XGBoost-based salary prediction for AI/ML roles using H1B visa data, BLS statist
 ## Setup
 
 ```bash
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
@@ -77,9 +82,6 @@ python -m src.main train [--tune] [--cv]
 
 # Prediction
 python -m src.main predict --title "..." --location XX [--experience N] [--skills "a,b,c"]
-
-# Demo (synthetic data)
-python -m src.main demo
 ```
 
 ## Data Flow

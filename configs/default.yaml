@@ -108,17 +108,6 @@ features:
     IL: 1.05
     GA: 0.95
 
-# API Keys (can also use environment variables)
-api_keys:
-  # BLS API key (optional but recommended)
-  # Get free key at: https://data.bls.gov/registrationEngine/
-  bls_api_key: ${BLS_API_KEY}
-
-  # Adzuna API credentials
-  # Register at: https://developer.adzuna.com/
-  adzuna_app_id: ${ADZUNA_APP_ID}
-  adzuna_api_key: ${ADZUNA_API_KEY}
-
 # Output Settings
 output:
   # Data directory
