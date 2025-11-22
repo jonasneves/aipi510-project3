@@ -1,95 +1,226 @@
-# AI Salary Negotiation Intelligence
+# AI Salary Prediction Pipeline
 
-XGBoost-based salary prediction for AI/ML roles using H1B visa data, BLS statistics, and job postings.
+Reproducible ML pipeline for predicting AI/ML salaries. Built with XGBoost, FastAPI, Streamlit, and MLFlow.
 
-## Setup
+**Live Demo:** [Frontend App](https://your-app.streamlit.app) | [API Endpoint](https://your-api.run.app)
 
-```bash
-# Create virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+## Overview
 
-# Install dependencies
-pip install -r requirements.txt
-```
+This project predicts salaries for AI/ML roles based on:
+- Job title and seniority level
+- Location (US states)
+- Years of experience
+- Company tier (FAANG, startups, etc.)
+- Technical skills
 
-Create `.env` with API keys:
-```
-BLS_API_KEY=your_key
-ADZUNA_APP_ID=your_id
-ADZUNA_API_KEY=your_key
-```
-
-## Usage
+## Quick Start
 
 ```bash
-# Collect data
-python -m src.main collect --source all
+# Install
+make install
 
-# Merge and train
-python -m src.main merge
-python -m src.main train
+# Run full pipeline
+make pipeline
 
-# Predict
-python -m src.main predict --title "ML Engineer" --location CA --experience 5
+# Or run steps individually
+make collect   # Collect data from APIs
+make merge     # Merge data sources
+make train     # Train model (logs to MLFlow)
+
+# Start services
+make api       # API at localhost:8000
+make frontend  # UI at localhost:8501
+make mlflow    # MLFlow at localhost:5000
 ```
 
 ## Data Sources
 
-| Source | Records | Description |
-|--------|---------|-------------|
-| H1B Visa | ~14,000 | Exact salaries from DOL disclosure data |
-| Adzuna | ~2,700 | Job postings with salary ranges |
-| BLS | 7 | National wage benchmarks by occupation |
-| Google Trends | ~100 | Regional interest data |
+| Source | Description | Records |
+|--------|-------------|---------|
+| [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL disclosure data with exact salaries | ~14,000 |
+| [Adzuna API](https://developer.adzuna.com/) | Job postings with salary ranges | ~2,700 |
+| [BLS](https://www.bls.gov/developers/) | National wage benchmarks | 7 |
+| Google Trends | Regional interest data | ~100 |
+
+Data is stored in AWS S3 (`s3://ai-salary-predictor/`) and cached to avoid redundant API calls.
+
+## Model
+
+**Algorithm:** XGBoost Regressor
+
+**Features (27 total):**
+- Skill indicators: deep_learning, nlp, computer_vision, mlops, cloud_ml, big_data
+- Experience level: is_senior, is_lead, is_principal, is_staff, is_director
+- Role type: engineer, scientist, analyst, architect, researcher
+- Location: cost-of-living multiplier, tech hub flags
+- Company tier: FAANG, tier-1, finance, startup
+
+**Evaluation Metrics:**
+- MAE: Mean Absolute Error
+- RMSE: Root Mean Squared Error
+- R2: Coefficient of Determination
+- MAPE: Mean Absolute Percentage Error
+
+All experiments are tracked in MLFlow.
 
 ## Project Structure
 
 ```
-src/
-├── data_collectors/
-│   ├── h1b_collector.py     # H1B visa data
-│   ├── bls_collector.py     # BLS wage benchmarks
-│   ├── trends_collector.py  # Google Trends
-│   └── adzuna_collector.py  # Job postings
-├── processing/
-│   ├── feature_engineering.py
-│   └── data_merger.py
-├── models/
-│   └── salary_predictor.py
-└── main.py
+.
+├── src/
+│   ├── data_collectors/    # H1B, BLS, Adzuna, Trends
+│   ├── processing/         # Feature engineering, data merging
+│   ├── models/             # XGBoost predictor
+│   └── main.py             # CLI entry point
+├── api/
+│   └── main.py             # FastAPI endpoints
+├── frontend/
+│   └── app.py              # Streamlit UI
+├── config.yaml             # Pipeline configuration
+├── Makefile                # Convenience commands
+├── Dockerfile              # Multi-stage builds
+└── docker-compose.yml      # Service orchestration
 ```
 
-## Features
+## API Endpoints
 
-Extracted from job data:
-- **Skills**: Deep learning, NLP, MLOps, cloud ML, computer vision
-- **Experience**: Junior, mid, senior, lead, staff, principal, director
-- **Location**: Cost-of-living multiplier, tech hub classification
-- **Company**: FAANG, tier-1, finance, other
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/` | GET | API info |
+| `/health` | GET | Health check |
+| `/model/info` | GET | Model metadata |
+| `/predict` | POST | Single prediction |
+| `/predict/batch` | POST | Batch predictions |
 
-## CLI Reference
+**Example request:**
+```bash
+curl -X POST http://localhost:8000/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "job_title": "Senior ML Engineer",
+    "location": "CA",
+    "experience_years": 5,
+    "company": "Google",
+    "skills": ["pytorch", "nlp"]
+  }'
+```
+
+## Local Development
+
+### Prerequisites
+- Python 3.11+
+- Docker (optional)
+
+### Setup
+```bash
+# Clone repository
+git clone https://github.com/jonasneves/aipi510-project3.git
+cd aipi510-project3
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+make install
+
+# Set up API keys in .env
+cp .env.example .env
+# Edit .env with your keys
+```
+
+### Environment Variables
+```
+BLS_API_KEY=your_bls_key
+ADZUNA_APP_ID=your_adzuna_id
+ADZUNA_API_KEY=your_adzuna_key
+AWS_ROLE_ARN=arn:aws:iam::xxx:role/xxx  # For S3 access
+```
+
+### Docker
+```bash
+# Build and run all services
+docker-compose up -d
+
+# Or run individually
+docker-compose up api
+docker-compose up frontend
+```
+
+## Cloud Deployment
+
+### API Deployment (Google Cloud Run)
 
 ```bash
-# Collection
-python -m src.main collect --source [all|h1b|bls|trends|jobs]
+# Build and push image
+gcloud builds submit --tag gcr.io/PROJECT_ID/salary-api
 
-# Processing
-python -m src.main merge
-
-# Training
-python -m src.main train [--tune] [--cv]
-
-# Prediction
-python -m src.main predict --title "..." --location XX [--experience N] [--skills "a,b,c"]
+# Deploy
+gcloud run deploy salary-api \
+  --image gcr.io/PROJECT_ID/salary-api \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated
 ```
 
-## Data Flow
+### Frontend Deployment (Streamlit Cloud)
 
-1. **Collect**: Download H1B files, fetch BLS/Adzuna APIs, scrape Trends
-2. **Merge**: Standardize schemas, combine sources, save to parquet
-3. **Train**: Feature engineering, XGBoost regression, model persistence
-4. **Predict**: Load model, engineer features, return salary estimate
+1. Push code to GitHub
+2. Go to [share.streamlit.io](https://share.streamlit.io)
+3. Deploy from `frontend/app.py`
+4. Set `API_URL` secret to your deployed API endpoint
+
+See [AWS_SETUP.md](AWS_SETUP.md) for S3 configuration with OIDC.
+
+## CI/CD Pipeline
+
+GitHub Actions workflow (`.github/workflows/ml-pipeline.yml`):
+
+1. **Collect** - Fetch data from APIs (or use S3 cache)
+2. **Merge** - Process and combine data sources
+3. **Train** - Train model with MLFlow tracking
+4. **Upload** - Save artifacts to S3
+
+The pipeline uses S3 as a cache to avoid redundant API calls. Use `workflow_dispatch` with `force_collect: true` to refresh data.
+
+## MLFlow Tracking
+
+```bash
+# Start MLFlow UI
+make mlflow
+# Open http://localhost:5000
+```
+
+Tracked per run:
+- Parameters: model hyperparameters, dataset size
+- Metrics: train/val/test MAE, RMSE, R2, MAPE
+- Artifacts: model.pkl, feature_importance.csv
+
+## Testing
+
+```bash
+make test
+```
+
+## Configuration
+
+All settings in `config.yaml`:
+
+```yaml
+model:
+  params:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+
+mlflow:
+  experiment_name: "salary_prediction"
+  tracking_uri: "file:./mlruns"
+
+s3:
+  bucket: "ai-salary-predictor"
+  region: "us-east-1"
+```
 
 ## License
 
