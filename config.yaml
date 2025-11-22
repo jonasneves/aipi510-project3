@@ -1,0 +1,85 @@
+# ML Pipeline Configuration
+
+# Data Configuration
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  target_column: "annual_salary"
+  test_size: 0.2
+  validation_size: 0.15
+  random_state: 42
+  salary_range:
+    min: 50000
+    max: 1000000
+
+# Data Sources
+sources:
+  h1b:
+    years: [2023, 2024]
+  bls:
+    start_year: 2022
+    end_year: 2024
+  adzuna:
+    results_per_page: 50
+    max_pages: 20
+
+# Model Configuration
+model:
+  type: "xgboost"
+  dir: "models"
+  params:
+    objective: "reg:squarederror"
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 3
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+
+# Training Configuration
+training:
+  cv_folds: 5
+  early_stopping_rounds: 20
+  scale_features: false
+
+# Feature Engineering
+features:
+  skill_categories:
+    - deep_learning
+    - nlp
+    - computer_vision
+    - mlops
+    - cloud_ml
+    - big_data
+    - traditional_ml
+    - data_engineering
+  location_col_multipliers:
+    CA: 1.35
+    NY: 1.30
+    WA: 1.20
+    MA: 1.25
+    TX: 1.00
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  model_path: "models/salary_model_latest.pkl"
+
+# S3 Configuration
+s3:
+  bucket: "ai-salary-predictor"
+  region: "us-east-1"
+  paths:
+    raw: "data/raw"
+    processed: "data/processed"
+    models: "models"
+
+# Deployment Configuration
+deployment:
+  platform: "docker"
+  image_name: "ai-salary-predictor"
+  image_tag: "latest"
