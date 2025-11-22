@@ -1,0 +1,479 @@
+"""
+Feature Engineering Pipeline
+
+Creates features for salary prediction from multiple data sources.
+Combines H1B data, BLS statistics, job postings, and Google Trends.
+"""
+
+import re
+from typing import Optional
+
+import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+
+
+class FeatureEngineer:
+    """Feature engineering for salary prediction model."""
+
+    # Tech skill categories and their market value weights
+    SKILL_CATEGORIES = {
+        "deep_learning": ["pytorch", "tensorflow", "keras", "deep learning", "neural network"],
+        "nlp": ["nlp", "natural language", "bert", "gpt", "transformer", "llm", "langchain", "huggingface"],
+        "computer_vision": ["computer vision", "opencv", "image recognition", "object detection", "yolo"],
+        "mlops": ["mlops", "kubeflow", "mlflow", "airflow", "docker", "kubernetes"],
+        "cloud_ml": ["sagemaker", "vertex ai", "azure ml", "databricks", "aws", "gcp", "azure"],
+        "big_data": ["spark", "hadoop", "kafka", "flink", "distributed"],
+        "traditional_ml": ["scikit-learn", "xgboost", "random forest", "regression", "classification"],
+        "data_engineering": ["sql", "etl", "data pipeline", "data warehouse", "snowflake"],
+    }
+
+    # Company tier categories (impacts compensation)
+    COMPANY_TIERS = {
+        "faang": ["google", "meta", "amazon", "apple", "netflix", "microsoft", "alphabet"],
+        "tier1": ["openai", "anthropic", "deepmind", "nvidia", "tesla", "salesforce", "uber", "airbnb", "stripe"],
+        "tier2": ["linkedin", "twitter", "snap", "lyft", "pinterest", "doordash", "instacart", "coinbase"],
+        "finance": ["citadel", "two sigma", "jane street", "de shaw", "goldman", "morgan stanley", "jpmorgan"],
+        "startup": [],  # Default for unknown companies
+    }
+
+    # Location cost-of-living multipliers (relative to national average)
+    LOCATION_COL = {
+        "CA": 1.35,  # California
+        "NY": 1.30,  # New York
+        "WA": 1.20,  # Washington
+        "MA": 1.25,  # Massachusetts
+        "CO": 1.10,  # Colorado
+        "TX": 1.00,  # Texas
+        "IL": 1.05,  # Illinois
+        "GA": 0.95,  # Georgia
+        "NC": 0.90,  # North Carolina
+        "FL": 1.00,  # Florida
+        "PA": 1.00,  # Pennsylvania
+        "VA": 1.10,  # Virginia
+        "AZ": 0.95,  # Arizona
+        "OR": 1.10,  # Oregon
+        "MD": 1.15,  # Maryland
+    }
+
+    def __init__(self):
+        """Initialize feature engineer."""
+        self.label_encoders = {}
+        self.scaler = StandardScaler()
+        self._fitted = False
+
+    def extract_skills(self, text: str) -> dict[str, int]:
+        """
+        Extract skill category flags from job title/description.
+
+        Args:
+            text: Job title or description text
+
+        Returns:
+            Dictionary with skill category flags
+        """
+        if pd.isna(text):
+            return {f"skill_{cat}": 0 for cat in self.SKILL_CATEGORIES}
+
+        text_lower = str(text).lower()
+        skills = {}
+
+        for category, keywords in self.SKILL_CATEGORIES.items():
+            skills[f"skill_{category}"] = int(
+                any(keyword in text_lower for keyword in keywords)
+            )
+
+        return skills
+
+    def extract_company_tier(self, company_name: str) -> str:
+        """
+        Classify company into tier based on name.
+
+        Args:
+            company_name: Company name
+
+        Returns:
+            Company tier classification
+        """
+        if pd.isna(company_name):
+            return "unknown"
+
+        company_lower = str(company_name).lower()
+
+        for tier, companies in self.COMPANY_TIERS.items():
+            if any(comp in company_lower for comp in companies):
+                return tier
+
+        return "other"
+
+    def extract_experience_level(self, title: str) -> dict[str, int]:
+        """
+        Extract experience level indicators from job title.
+
+        Args:
+            title: Job title
+
+        Returns:
+            Dictionary with experience level flags
+        """
+        if pd.isna(title):
+            return {
+                "is_senior": 0,
+                "is_lead": 0,
+                "is_principal": 0,
+                "is_staff": 0,
+                "is_manager": 0,
+                "is_director": 0,
+                "is_entry": 0,
+                "estimated_yoe": 3,  # Default mid-level
+            }
+
+        title_lower = str(title).lower()
+
+        levels = {
+            "is_senior": int(any(t in title_lower for t in ["senior", "sr.", "sr "])),
+            "is_lead": int("lead" in title_lower),
+            "is_principal": int("principal" in title_lower),
+            "is_staff": int("staff" in title_lower),
+            "is_manager": int(any(t in title_lower for t in ["manager", "mgr"])),
+            "is_director": int(any(t in title_lower for t in ["director", "head of", "vp"])),
+            "is_entry": int(any(t in title_lower for t in ["junior", "jr.", "entry", "associate", "intern"])),
+        }
+
+        # Estimate years of experience based on level
+        if levels["is_director"]:
+            levels["estimated_yoe"] = 12
+        elif levels["is_principal"] or levels["is_staff"]:
+            levels["estimated_yoe"] = 10
+        elif levels["is_lead"] or levels["is_manager"]:
+            levels["estimated_yoe"] = 7
+        elif levels["is_senior"]:
+            levels["estimated_yoe"] = 5
+        elif levels["is_entry"]:
+            levels["estimated_yoe"] = 1
+        else:
+            levels["estimated_yoe"] = 3
+
+        return levels
+
+    def extract_role_type(self, title: str) -> dict[str, int]:
+        """
+        Extract role type indicators.
+
+        Args:
+            title: Job title
+
+        Returns:
+            Dictionary with role type flags
+        """
+        if pd.isna(title):
+            return {
+                "role_engineer": 0,
+                "role_scientist": 0,
+                "role_analyst": 0,
+                "role_architect": 0,
+                "role_researcher": 0,
+            }
+
+        title_lower = str(title).lower()
+
+        return {
+            "role_engineer": int("engineer" in title_lower),
+            "role_scientist": int("scientist" in title_lower),
+            "role_analyst": int("analyst" in title_lower),
+            "role_architect": int("architect" in title_lower),
+            "role_researcher": int(any(t in title_lower for t in ["research", "researcher"])),
+        }
+
+    def get_location_features(self, state: str) -> dict[str, float]:
+        """
+        Get location-based features.
+
+        Args:
+            state: US state abbreviation
+
+        Returns:
+            Dictionary with location features
+        """
+        col_multiplier = self.LOCATION_COL.get(state, 1.0)
+
+        # Tech hub flags
+        major_tech_hub = state in ["CA", "WA", "NY"]
+        secondary_hub = state in ["MA", "CO", "TX", "IL", "GA"]
+
+        return {
+            "col_multiplier": col_multiplier,
+            "is_major_tech_hub": int(major_tech_hub),
+            "is_secondary_hub": int(secondary_hub),
+            "is_remote_friendly": int(state in ["CO", "TX", "FL", "AZ"]),
+        }
+
+    def engineer_features(
+        self,
+        df: pd.DataFrame,
+        title_col: str = "job_title",
+        company_col: str = "employer_name",
+        state_col: str = "worksite_state",
+        salary_col: str = "annual_salary",
+    ) -> pd.DataFrame:
+        """
+        Engineer all features for salary prediction.
+
+        Args:
+            df: Input DataFrame
+            title_col: Column containing job title
+            company_col: Column containing company name
+            state_col: Column containing state
+            salary_col: Target salary column
+
+        Returns:
+            DataFrame with engineered features
+        """
+        df = df.copy()
+
+        print("Extracting skill features...")
+        # Extract skill features from job title
+        if title_col in df.columns:
+            skill_features = df[title_col].apply(self.extract_skills).apply(pd.Series)
+            df = pd.concat([df, skill_features], axis=1)
+
+        print("Extracting experience level features...")
+        # Extract experience level
+        if title_col in df.columns:
+            exp_features = df[title_col].apply(self.extract_experience_level).apply(pd.Series)
+            df = pd.concat([df, exp_features], axis=1)
+
+        print("Extracting role type features...")
+        # Extract role type
+        if title_col in df.columns:
+            role_features = df[title_col].apply(self.extract_role_type).apply(pd.Series)
+            df = pd.concat([df, role_features], axis=1)
+
+        print("Extracting company tier features...")
+        # Extract company tier
+        if company_col in df.columns:
+            df["company_tier"] = df[company_col].apply(self.extract_company_tier)
+
+        print("Extracting location features...")
+        # Extract location features
+        if state_col in df.columns:
+            # Standardize state column
+            df["state_clean"] = df[state_col].str.upper().str.strip().str[:2]
+            location_features = df["state_clean"].apply(self.get_location_features).apply(pd.Series)
+            df = pd.concat([df, location_features], axis=1)
+
+        print("Creating interaction features...")
+        # Create interaction features
+        df = self._create_interactions(df)
+
+        print("Handling time-based features...")
+        # Time-based features
+        df = self._add_time_features(df)
+
+        # Remove any duplicate columns
+        df = df.loc[:, ~df.columns.duplicated()]
+
+        return df
+
+    def _create_interactions(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create interaction features between key variables."""
+        df = df.copy()
+
+        # Skill count (total skills present)
+        skill_cols = [col for col in df.columns if col.startswith("skill_")]
+        if skill_cols:
+            df["skill_count"] = df[skill_cols].sum(axis=1)
+
+        return df
+
+    def _add_time_features(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Add time-based features."""
+        df = df.copy()
+
+        # Check for date columns
+        date_cols = ["received_date", "decision_date", "created_date", "date"]
+
+        for col in date_cols:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors="coerce")
+
+                if df[col].notna().any():
+                    df["year"] = df[col].dt.year
+                    df["quarter"] = df[col].dt.quarter
+                    df["month"] = df[col].dt.month
+
+                    # Hiring season flag (Q1 and Q4 typically higher)
+                    df["is_peak_hiring"] = df["quarter"].isin([1, 4]).astype(int)
+                    break
+
+        return df
+
+    def encode_categoricals(
+        self,
+        df: pd.DataFrame,
+        categorical_cols: Optional[list[str]] = None,
+        fit: bool = True,
+    ) -> pd.DataFrame:
+        """
+        Encode categorical variables.
+
+        Args:
+            df: Input DataFrame
+            categorical_cols: Columns to encode
+            fit: Whether to fit encoders (True for training)
+
+        Returns:
+            DataFrame with encoded categoricals
+        """
+        df = df.copy()
+
+        if categorical_cols is None:
+            categorical_cols = ["company_tier", "state_clean"]
+
+        for col in categorical_cols:
+            if col not in df.columns:
+                continue
+
+            if fit:
+                self.label_encoders[col] = LabelEncoder()
+                # Handle unseen categories
+                df[f"{col}_encoded"] = self.label_encoders[col].fit_transform(
+                    df[col].fillna("unknown").astype(str)
+                )
+            else:
+                if col in self.label_encoders:
+                    # Handle unseen categories
+                    df[col] = df[col].fillna("unknown").astype(str)
+                    known_classes = set(self.label_encoders[col].classes_)
+                    df[col] = df[col].apply(
+                        lambda x: x if x in known_classes else "unknown"
+                    )
+                    df[f"{col}_encoded"] = self.label_encoders[col].transform(df[col])
+
+        return df
+
+    def select_features(self, df: pd.DataFrame) -> tuple[list[str], str]:
+        """
+        Select features for modeling.
+
+        Args:
+            df: DataFrame with all features
+
+        Returns:
+            Tuple of (feature column names, target column name)
+        """
+        # Numeric feature columns
+        feature_cols = []
+
+        # Skill features
+        feature_cols.extend([col for col in df.columns if col.startswith("skill_")])
+
+        # Experience features
+        experience_features = [
+            "is_senior", "is_lead", "is_principal", "is_staff",
+            "is_manager", "is_director", "is_entry", "estimated_yoe"
+        ]
+        feature_cols.extend([col for col in experience_features if col in df.columns])
+
+        # Role features
+        feature_cols.extend([col for col in df.columns if col.startswith("role_")])
+
+        # Location features
+        location_features = [
+            "col_multiplier", "is_major_tech_hub",
+            "is_secondary_hub", "is_remote_friendly"
+        ]
+        feature_cols.extend([col for col in location_features if col in df.columns])
+
+        # Interaction features
+        if "skill_count" in df.columns:
+            feature_cols.append("skill_count")
+
+        # Time features
+        time_features = ["year", "quarter", "is_peak_hiring"]
+        feature_cols.extend([col for col in time_features if col in df.columns])
+
+        # Encoded categoricals
+        feature_cols.extend([col for col in df.columns if col.endswith("_encoded")])
+
+        # Target column
+        target_col = None
+        for col in ["annual_salary", "salary_avg", "mean_annual_wage", "wage_from"]:
+            if col in df.columns:
+                target_col = col
+                break
+
+        return feature_cols, target_col
+
+    def prepare_for_modeling(
+        self,
+        df: pd.DataFrame,
+        fit: bool = True,
+    ) -> tuple[pd.DataFrame, list[str], str]:
+        """
+        Full pipeline to prepare data for modeling.
+
+        Args:
+            df: Raw input DataFrame
+            fit: Whether to fit transformers
+
+        Returns:
+            Tuple of (processed DataFrame, feature columns, target column)
+        """
+        # Engineer features
+        df = self.engineer_features(df)
+
+        # Encode categoricals
+        df = self.encode_categoricals(df, fit=fit)
+
+        # Select features
+        feature_cols, target_col = self.select_features(df)
+
+        # Remove rows with missing target
+        if target_col:
+            df = df[df[target_col].notna()]
+
+            # Filter reasonable salary range
+            df = df[(df[target_col] >= 50000) & (df[target_col] <= 1000000)]
+
+        self._fitted = True
+
+        print(f"\nPrepared {len(df)} samples with {len(feature_cols)} features")
+        print(f"Target column: {target_col}")
+
+        return df, feature_cols, target_col
+
+
+if __name__ == "__main__":
+    # Example usage
+    import numpy as np
+
+    # Create sample data
+    sample_data = pd.DataFrame({
+        "job_title": [
+            "Senior Machine Learning Engineer",
+            "Data Scientist",
+            "Junior ML Engineer",
+            "Principal AI Researcher",
+            "MLOps Engineer",
+        ],
+        "employer_name": [
+            "Google",
+            "Tech Startup",
+            "Small Company",
+            "Meta",
+            "Amazon",
+        ],
+        "worksite_state": ["CA", "NY", "TX", "WA", "WA"],
+        "annual_salary": [250000, 150000, 120000, 350000, 180000],
+        "received_date": pd.date_range("2024-01-01", periods=5, freq="M"),
+    })
+
+    engineer = FeatureEngineer()
+    df, features, target = engineer.prepare_for_modeling(sample_data)
+
+    print("\nFeature columns:")
+    print(features)
+
+    print("\nSample features:")
+    print(df[features].head())

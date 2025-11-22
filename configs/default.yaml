@@ -1,0 +1,131 @@
+# AI Salary Negotiation Intelligence Tool - Configuration
+# ========================================================
+
+# Data Collection Settings
+data_collection:
+  # Years to collect H1B data for
+  h1b_years: [2023, 2024]
+
+  # BLS data range
+  bls_start_year: 2020
+  bls_end_year: 2024
+
+  # Google Trends timeframe
+  trends_timeframe: "today 5-y"
+
+  # Rate limiting (seconds between API calls)
+  rate_limit_delay: 2
+
+# Data Processing Settings
+processing:
+  # Minimum salary to include (filters out likely errors)
+  min_salary: 50000
+
+  # Maximum salary to include
+  max_salary: 1000000
+
+  # Test year for time-based train/test split
+  test_year: 2024
+
+  # Validation ratio (from training data)
+  validation_ratio: 0.15
+
+# Model Settings
+model:
+  # XGBoost hyperparameters
+  xgboost:
+    n_estimators: 200
+    max_depth: 6
+    learning_rate: 0.1
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 3
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+
+  # Hyperparameter tuning grid
+  tuning_grid:
+    max_depth: [4, 6, 8]
+    learning_rate: [0.05, 0.1, 0.15]
+    n_estimators: [100, 200, 300]
+    min_child_weight: [1, 3, 5]
+
+  # Cross-validation folds
+  cv_folds: 5
+
+# Feature Engineering Settings
+features:
+  # Skills to detect in job titles/descriptions
+  skill_categories:
+    deep_learning:
+      - pytorch
+      - tensorflow
+      - keras
+      - deep learning
+      - neural network
+
+    nlp:
+      - nlp
+      - natural language
+      - bert
+      - gpt
+      - transformer
+      - llm
+      - langchain
+      - huggingface
+
+    computer_vision:
+      - computer vision
+      - opencv
+      - image recognition
+      - object detection
+
+    mlops:
+      - mlops
+      - kubeflow
+      - mlflow
+      - airflow
+      - docker
+      - kubernetes
+
+    cloud_ml:
+      - sagemaker
+      - vertex ai
+      - azure ml
+      - databricks
+      - aws
+      - gcp
+
+  # Cost of living multipliers by state
+  location_multipliers:
+    CA: 1.35
+    NY: 1.30
+    WA: 1.20
+    MA: 1.25
+    CO: 1.10
+    TX: 1.00
+    IL: 1.05
+    GA: 0.95
+
+# API Keys (can also use environment variables)
+api_keys:
+  # BLS API key (optional but recommended)
+  # Get free key at: https://data.bls.gov/registrationEngine/
+  bls_api_key: ${BLS_API_KEY}
+
+  # Adzuna API credentials
+  # Register at: https://developer.adzuna.com/
+  adzuna_app_id: ${ADZUNA_APP_ID}
+  adzuna_api_key: ${ADZUNA_API_KEY}
+
+# Output Settings
+output:
+  # Data directory
+  data_dir: data
+
+  # Model directory
+  model_dir: models
+
+  # Log level
+  log_level: INFO
