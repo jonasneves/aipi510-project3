@@ -5,7 +5,6 @@ Predicts AI/ML salary ranges based on job features, location,
 experience level, skills, and market trends.
 """
 
-import json
 import pickle
 from pathlib import Path
 from typing import Optional
@@ -210,11 +209,6 @@ class SalaryPredictor:
 
         self._print_metrics("Test", metrics)
 
-        # Additional analysis
-        metrics["prediction_analysis"] = self._analyze_predictions(
-            y_test, predictions
-        )
-
         return metrics
 
     def _calculate_metrics(
@@ -239,39 +233,6 @@ class SalaryPredictor:
         print(f"  R2:   {metrics['r2']:.4f}")
         print(f"  MAPE: {metrics['mape']:.2f}%")
         print(f"  Median AE: ${metrics['median_ae']:,.0f}")
-
-    def _analyze_predictions(
-        self,
-        y_true: pd.Series,
-        y_pred: np.ndarray,
-    ) -> dict:
-        """Analyze prediction errors by salary range."""
-        df = pd.DataFrame({
-            "actual": y_true,
-            "predicted": y_pred,
-            "error": y_true - y_pred,
-            "abs_error": np.abs(y_true - y_pred),
-            "pct_error": np.abs(y_true - y_pred) / y_true * 100,
-        })
-
-        # Analyze by salary bracket
-        brackets = [0, 100000, 150000, 200000, 250000, 500000, np.inf]
-        labels = ["<100k", "100-150k", "150-200k", "200-250k", "250-500k", ">500k"]
-
-        df["bracket"] = pd.cut(df["actual"], bins=brackets, labels=labels)
-
-        bracket_analysis = df.groupby("bracket", observed=True).agg({
-            "abs_error": ["mean", "median"],
-            "pct_error": "mean",
-            "actual": "count",
-        }).round(2)
-
-        return {
-            "by_bracket": bracket_analysis.to_dict(),
-            "underestimate_pct": (df["error"] > 0).mean() * 100,
-            "within_10pct": (df["pct_error"] <= 10).mean() * 100,
-            "within_20pct": (df["pct_error"] <= 20).mean() * 100,
-        }
 
     def cross_validate(
         self,
@@ -461,120 +422,3 @@ class SalaryPredictor:
 
         print(f"Model loaded from {path}")
         print(f"Features: {len(self.feature_names)}")
-
-    def predict_salary(
-        self,
-        job_title: str,
-        location: str,
-        company: Optional[str] = None,
-        skills: Optional[list[str]] = None,
-        years_experience: int = 3,
-    ) -> dict:
-        """
-        User-friendly salary prediction interface.
-
-        Args:
-            job_title: Job title
-            location: US state abbreviation
-            company: Company name (optional)
-            skills: List of skills (optional)
-            years_experience: Years of experience
-
-        Returns:
-            Prediction results with salary range
-        """
-        from ..processing.feature_engineering import FeatureEngineer
-
-        # Create a single-row DataFrame
-        data = pd.DataFrame([{
-            "job_title": job_title,
-            "employer_name": company,
-            "worksite_state": location,
-            "annual_salary": 0,  # Placeholder
-        }])
-
-        # Engineer features
-        engineer = FeatureEngineer()
-        data, feature_cols, _ = engineer.prepare_for_modeling(data, fit=False)
-
-        # Handle skill keywords from input
-        if skills:
-            skills_text = " ".join(skills).lower()
-            for col in data.columns:
-                if col.startswith("skill_"):
-                    skill_name = col.replace("skill_", "")
-                    if any(s in skills_text for s in [skill_name, skill_name.replace("_", " ")]):
-                        data[col] = 1
-
-        # Make prediction
-        X = data[feature_cols] if feature_cols else data
-        result = self.predict_with_range(X)
-
-        return {
-            "predicted_salary": f"${result['predicted_salary'].iloc[0]:,.0f}",
-            "salary_range": f"${result['salary_low'].iloc[0]:,.0f} - ${result['salary_high'].iloc[0]:,.0f}",
-            "inputs": {
-                "job_title": job_title,
-                "location": location,
-                "company": company,
-                "years_experience": years_experience,
-            },
-        }
-
-
-if __name__ == "__main__":
-    # Example usage with synthetic data
-    print("Creating synthetic training data for demonstration...")
-
-    np.random.seed(42)
-    n_samples = 1000
-
-    # Generate synthetic features
-    X = pd.DataFrame({
-        "skill_deep_learning": np.random.binomial(1, 0.3, n_samples),
-        "skill_nlp": np.random.binomial(1, 0.2, n_samples),
-        "skill_mlops": np.random.binomial(1, 0.25, n_samples),
-        "skill_cloud_ml": np.random.binomial(1, 0.4, n_samples),
-        "is_senior": np.random.binomial(1, 0.4, n_samples),
-        "is_lead": np.random.binomial(1, 0.15, n_samples),
-        "estimated_yoe": np.random.randint(1, 15, n_samples),
-        "is_major_tech_hub": np.random.binomial(1, 0.3, n_samples),
-        "col_multiplier": np.random.uniform(0.9, 1.35, n_samples),
-        "year": np.random.choice([2022, 2023, 2024], n_samples),
-    })
-
-    # Generate synthetic target (salary)
-    base_salary = 100000
-    y = (
-        base_salary
-        + X["skill_deep_learning"] * 30000
-        + X["skill_nlp"] * 35000
-        + X["skill_mlops"] * 20000
-        + X["is_senior"] * 40000
-        + X["is_lead"] * 25000
-        + X["estimated_yoe"] * 5000
-        + X["is_major_tech_hub"] * 30000
-        + (X["col_multiplier"] - 1) * 80000
-        + np.random.normal(0, 15000, n_samples)
-    )
-
-    # Train model
-    predictor = SalaryPredictor()
-
-    # Split data
-    train_idx = int(0.8 * n_samples)
-    X_train, X_test = X.iloc[:train_idx], X.iloc[train_idx:]
-    y_train, y_test = y.iloc[:train_idx], y.iloc[train_idx:]
-
-    # Train
-    predictor.train(X_train, y_train)
-
-    # Evaluate
-    predictor.evaluate(X_test, y_test)
-
-    # Feature importance
-    print("\nTop Features:")
-    print(predictor.get_feature_importance(top_n=10))
-
-    # Save model
-    predictor.save("demo_model")

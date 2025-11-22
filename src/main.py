@@ -297,157 +297,6 @@ def predict(args):
     print(f"- Suggested negotiation range: ${pred_salary * 0.95:,.0f} - ${pred_salary * 1.15:,.0f}")
 
 
-def demo(args):
-    """Run a demonstration with synthetic data."""
-    print("=" * 60)
-    print("AI Salary Negotiation Intelligence - Demo Mode")
-    print("=" * 60)
-
-    from .models import SalaryPredictor
-
-    print("\nGenerating synthetic AI/ML salary data...")
-
-    np.random.seed(42)
-    n_samples = 2000
-
-    # Generate realistic synthetic features
-    X = pd.DataFrame({
-        "skill_deep_learning": np.random.binomial(1, 0.35, n_samples),
-        "skill_nlp": np.random.binomial(1, 0.25, n_samples),
-        "skill_computer_vision": np.random.binomial(1, 0.15, n_samples),
-        "skill_mlops": np.random.binomial(1, 0.30, n_samples),
-        "skill_cloud_ml": np.random.binomial(1, 0.45, n_samples),
-        "skill_traditional_ml": np.random.binomial(1, 0.50, n_samples),
-        "is_senior": np.random.binomial(1, 0.35, n_samples),
-        "is_lead": np.random.binomial(1, 0.12, n_samples),
-        "is_principal": np.random.binomial(1, 0.05, n_samples),
-        "is_staff": np.random.binomial(1, 0.08, n_samples),
-        "estimated_yoe": np.random.randint(1, 15, n_samples),
-        "is_major_tech_hub": np.random.binomial(1, 0.35, n_samples),
-        "is_secondary_hub": np.random.binomial(1, 0.25, n_samples),
-        "col_multiplier": np.random.uniform(0.90, 1.40, n_samples),
-        "role_engineer": np.random.binomial(1, 0.60, n_samples),
-        "role_scientist": np.random.binomial(1, 0.30, n_samples),
-        "year": np.random.choice([2022, 2023, 2024], n_samples, p=[0.2, 0.3, 0.5]),
-    })
-
-    # Feature interactions
-    X["skill_count"] = X[[c for c in X.columns if c.startswith("skill_")]].sum(axis=1)
-    X["yoe_location_interaction"] = X["estimated_yoe"] * X["col_multiplier"]
-
-    # Generate realistic salaries
-    base_salary = 95000
-    y = (
-        base_salary
-        + X["skill_deep_learning"] * 28000
-        + X["skill_nlp"] * 35000
-        + X["skill_computer_vision"] * 22000
-        + X["skill_mlops"] * 18000
-        + X["skill_cloud_ml"] * 12000
-        + X["is_senior"] * 45000
-        + X["is_lead"] * 30000
-        + X["is_principal"] * 55000
-        + X["is_staff"] * 65000
-        + X["estimated_yoe"] * 6000
-        + X["is_major_tech_hub"] * 35000
-        + X["is_secondary_hub"] * 15000
-        + (X["col_multiplier"] - 1) * 100000
-        + X["role_scientist"] * 12000
-        + (X["year"] - 2022) * 8000  # Yearly increase
-        + np.random.normal(0, 18000, n_samples)
-    )
-
-    # Clip to reasonable range
-    y = y.clip(lower=70000, upper=600000)
-
-    print(f"\nGenerated {n_samples} synthetic salary samples")
-    print(f"Salary range: ${y.min():,.0f} - ${y.max():,.0f}")
-    print(f"Median salary: ${y.median():,.0f}")
-
-    # Split data
-    train_size = int(0.7 * n_samples)
-    val_size = int(0.15 * n_samples)
-
-    X_train = X.iloc[:train_size]
-    y_train = y.iloc[:train_size]
-
-    X_val = X.iloc[train_size:train_size + val_size]
-    y_val = y.iloc[train_size:train_size + val_size]
-
-    X_test = X.iloc[train_size + val_size:]
-    y_test = y.iloc[train_size + val_size:]
-
-    # Train model
-    print("\nTraining XGBoost model...")
-    predictor = SalaryPredictor(model_dir=args.model_dir)
-
-    predictor.train(X_train, y_train, X_val, y_val)
-
-    # Cross-validation
-    print("\nPerforming cross-validation...")
-    predictor.cross_validate(pd.concat([X_train, X_val]), pd.concat([y_train, y_val]))
-
-    # Test evaluation
-    print("\nEvaluating on held-out test set...")
-    predictor.evaluate(X_test, y_test)
-
-    # Feature importance
-    print("\n" + "=" * 40)
-    print("TOP 10 SALARY PREDICTORS")
-    print("=" * 40)
-    importance = predictor.get_feature_importance(top_n=10)
-    for i, (_, row) in enumerate(importance.iterrows(), 1):
-        bar = "█" * int(row["importance"] * 50)
-        print(f"{i:2}. {row['feature']:25} {bar} {row['importance']:.3f}")
-
-    # Save demo model
-    predictor.save("demo_salary_model")
-
-    # Example predictions
-    print("\n" + "=" * 40)
-    print("EXAMPLE SALARY PREDICTIONS")
-    print("=" * 40)
-
-    examples = [
-        {"name": "Junior ML Engineer, Texas", "yoe": 2, "senior": 0, "hub": 0, "nlp": 0, "dl": 1, "col": 1.0},
-        {"name": "Senior Data Scientist, SF", "yoe": 6, "senior": 1, "hub": 1, "nlp": 1, "dl": 1, "col": 1.35},
-        {"name": "Staff ML Engineer, Seattle", "yoe": 10, "senior": 0, "hub": 1, "nlp": 0, "dl": 1, "col": 1.20},
-        {"name": "Lead NLP Engineer, NYC", "yoe": 8, "senior": 0, "hub": 1, "nlp": 1, "dl": 1, "col": 1.30},
-    ]
-
-    for ex in examples:
-        sample = pd.DataFrame([{
-            "skill_deep_learning": ex["dl"],
-            "skill_nlp": ex["nlp"],
-            "skill_computer_vision": 0,
-            "skill_mlops": 0,
-            "skill_cloud_ml": 1,
-            "skill_traditional_ml": 1,
-            "is_senior": ex["senior"],
-            "is_lead": int("Lead" in ex["name"]),
-            "is_principal": 0,
-            "is_staff": int("Staff" in ex["name"]),
-            "estimated_yoe": ex["yoe"],
-            "is_major_tech_hub": ex["hub"],
-            "is_secondary_hub": 0,
-            "col_multiplier": ex["col"],
-            "role_engineer": int("Engineer" in ex["name"]),
-            "role_scientist": int("Scientist" in ex["name"]),
-            "year": 2024,
-            "skill_count": ex["dl"] + ex["nlp"] + 2,
-            "yoe_location_interaction": ex["yoe"] * ex["col"],
-        }])
-
-        pred = predictor.predict_with_range(sample)
-        print(f"\n{ex['name']}:")
-        print(f"  Predicted: ${pred['predicted_salary'].iloc[0]:,.0f}")
-        print(f"  Range: ${pred['salary_low'].iloc[0]:,.0f} - ${pred['salary_high'].iloc[0]:,.0f}")
-
-    print("\n" + "=" * 60)
-    print("Demo complete! Model saved for use with predict command.")
-    print("=" * 60)
-
-
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -455,16 +304,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  # Run demo with synthetic data
-  python -m src.main demo
-
-  # Collect data from all sources
   python -m src.main collect --source all
-
-  # Train model
   python -m src.main train --tune
-
-  # Make a prediction
   python -m src.main predict --title "ML Engineer" --location CA --experience 5
         """,
     )
@@ -526,9 +367,6 @@ Examples:
     predict_parser.add_argument("--experience", type=int, help="Years of experience")
     predict_parser.add_argument("--skills", help="Comma-separated skills")
 
-    # Demo command
-    demo_parser = subparsers.add_parser("demo", help="Run demo with synthetic data")
-
     args = parser.parse_args()
 
     if args.command == "collect":
@@ -539,8 +377,6 @@ Examples:
         train_model(args)
     elif args.command == "predict":
         predict(args)
-    elif args.command == "demo":
-        demo(args)
     else:
         parser.print_help()
 
