@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+    inputs:
+      force_collect:
+        description: 'Force data collection from APIs (ignore S3 cache)'
+        type: boolean
+        default: false
 
 env:
   PYTHON_VERSION: "3.11"
@@ -19,6 +24,8 @@ permissions:
 jobs:
   collect:
     runs-on: ubuntu-latest
+    outputs:
+      data_source: ${{ steps.check-cache.outputs.source }}
     steps:
       - uses: actions/checkout@v4
 
@@ -29,7 +36,46 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - name: Collect data
+      # Configure AWS credentials first to check S3 cache
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # Try to pull cached data from S3
+      - name: Check S3 cache
+        id: check-cache
+        run: |
+          mkdir -p data/raw
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "source=api" >> $GITHUB_OUTPUT
+            echo "PR build - will collect from APIs"
+          elif [ "${{ inputs.force_collect }}" = "true" ]; then
+            echo "source=api" >> $GITHUB_OUTPUT
+            echo "Force collect enabled - will collect from APIs"
+          else
+            # Try to download from S3
+            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/ data/raw/ 2>/dev/null; then
+              # Check if we got any data
+              if [ "$(ls -A data/raw/*.parquet 2>/dev/null)" ]; then
+                echo "source=s3" >> $GITHUB_OUTPUT
+                echo "Using cached data from S3"
+              else
+                echo "source=api" >> $GITHUB_OUTPUT
+                echo "S3 cache empty - will collect from APIs"
+              fi
+            else
+              echo "source=api" >> $GITHUB_OUTPUT
+              echo "S3 not available - will collect from APIs"
+            fi
+          fi
+
+      # Only collect from APIs if S3 cache miss
+      - name: Collect data from APIs
+        if: steps.check-cache.outputs.source == 'api'
         env:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
@@ -39,6 +85,8 @@ jobs:
       - name: Summary
         run: |
           echo "## Data Collection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Source:** ${{ steps.check-cache.outputs.source }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Source | Records |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|---------|" >> $GITHUB_STEP_SUMMARY
@@ -54,16 +102,9 @@ jobs:
           path: data/raw/
           retention-days: 1
 
-      # Upload raw data to S3
-      - name: Configure AWS credentials
-        if: github.event_name != 'pull_request'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
-
+      # Upload to S3 only if we collected fresh data
       - name: Upload raw data to S3
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.check-cache.outputs.source == 'api'
         run: |
           aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/ \
             --delete \
@@ -111,7 +152,6 @@ jobs:
           path: data/processed/
           retention-days: 1
 
-      # Upload processed data to S3
       - name: Configure AWS credentials
         if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
@@ -167,7 +207,6 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-      # Upload model to S3
       - name: Configure AWS credentials
         if: github.event_name != 'pull_request'
         uses: aws-actions/configure-aws-credentials@v4
@@ -178,14 +217,11 @@ jobs:
       - name: Upload model to S3
         if: github.event_name != 'pull_request'
         run: |
-          # Upload with timestamp for versioning
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
-          # Upload to versioned path
           aws s3 sync models/ s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/ \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
 
-          # Also upload to 'latest' path
           aws s3 sync models/ s3://${{ env.S3_BUCKET }}/models/latest/ \
             --delete \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }},timestamp=${TIMESTAMP}"
