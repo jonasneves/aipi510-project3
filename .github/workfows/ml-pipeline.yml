@@ -1,0 +1,25 @@
+# .github/workflows/main.yml
+name: ML Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    # Lint, test, validate config.yaml
+  
+  build-docker:
+    # Build and push Docker image
+  
+  train-model:
+    # Only on manual trigger
+    if: github.event_name == 'workflow_dispatch'
+    
+  deploy-api:
+    # Auto-deploy to Cloud Run after Docker build
+    
+  deploy-frontend:
+    # Auto-deploy Streamlit app
