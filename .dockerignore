@@ -1,0 +1,37 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+.pytest_cache
+.coverage
+htmlcov
+
+# Virtual environments
+venv
+.venv
+env
+
+# IDE
+.vscode
+.idea
+*.swp
+
+# Data (mount as volume instead)
+data/raw/*
+data/processed/*
+
+# Models (mount as volume instead)
+models/*
+
+# Documentation
+*.md
+EXAMPLE-*
+
+# Misc
+.env
+.DS_Store
