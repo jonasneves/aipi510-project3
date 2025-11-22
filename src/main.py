@@ -115,7 +115,8 @@ def train_model(args):
     print("\nLoading data...")
     merger = DataMerger(data_dir=args.data_dir)
 
-    processed_path = Path(args.data_dir) / "processed" / "merged_salary_data.parquet"
+    # Match DataMerger's path logic: processed_dir = data_dir.parent / "processed"
+    processed_path = Path(args.data_dir).parent / "processed" / "merged_salary_data.parquet"
 
     if processed_path.exists():
         df = pd.read_parquet(processed_path)
