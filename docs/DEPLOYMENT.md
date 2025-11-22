@@ -1,28 +1,28 @@
 # Deployment Guide
 
-## API Deployment
+## API Deployment (AWS)
 
-### Google Cloud Run
+### Option 1: AWS App Runner
 
 ```bash
-# Build and push
-gcloud builds submit --tag gcr.io/PROJECT_ID/salary-api
+# Push to ECR
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
 
-# Deploy
-gcloud run deploy salary-api \
-  --image gcr.io/PROJECT_ID/salary-api \
-  --platform managed \
-  --region us-central1 \
-  --allow-unauthenticated
+docker build --target api -t salary-api .
+docker tag salary-api:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/salary-api:latest
+docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/salary-api:latest
+
+# Deploy via AWS Console: App Runner > Create Service > Container Registry
 ```
 
-### AWS Lambda (with container)
+### Option 2: AWS Lambda + API Gateway
 
 ```bash
-# Build for Lambda
+# Build container
 docker build --target api -t salary-api .
 
-# Push to ECR and deploy via AWS Console or SAM
+# Push to ECR, then create Lambda function from container image
+# Configure API Gateway HTTP API as trigger
 ```
 
 ## Frontend Deployment
@@ -31,28 +31,24 @@ docker build --target api -t salary-api .
 
 1. Push code to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repository
-4. Set main file: `frontend/app.py`
-5. Add secret: `API_URL=https://your-deployed-api.run.app`
+3. Connect repository, set main file: `frontend/app.py`
+4. Add secret: `API_URL=https://your-api-endpoint.amazonaws.com`
 
 ### HuggingFace Spaces
 
 1. Create new Space (Streamlit SDK)
-2. Upload `frontend/app.py` and `requirements.txt`
-3. Configure API_URL in Space settings
+2. Upload `frontend/app.py`
+3. Set `API_URL` in Space settings
 
 ## S3 Configuration
 
-See [AWS_SETUP.md](../AWS_SETUP.md) for OIDC authentication setup.
+See [AWS_SETUP.md](../AWS_SETUP.md) for OIDC authentication.
 
 ## CI/CD
 
-GitHub Actions pipeline (`.github/workflows/ml-pipeline.yml`):
-
+GitHub Actions (`.github/workflows/ml-pipeline.yml`):
 - Triggers on push to main
-- Uses S3 cache for data (avoids redundant API calls)
+- Uses S3 cache for data
 - Uploads models to S3 with versioning
 
-Force fresh data collection:
-- Go to Actions > ML Pipeline > Run workflow
-- Check "Force data collection from APIs"
+Force fresh data: Actions > ML Pipeline > Run workflow > Check "Force data collection"
