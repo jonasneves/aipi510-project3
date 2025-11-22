@@ -1,6 +1,6 @@
 # Makefile for AI Salary Prediction Pipeline
 
-.PHONY: help install collect merge train predict api test docker-build docker-up clean
+.PHONY: help install collect merge train predict pipeline api mlflow frontend test docker-build docker-up docker-down format lint clean setup
 
 help:
 	@echo "AI Salary Prediction Pipeline - Available Commands:"

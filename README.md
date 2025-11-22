@@ -4,6 +4,19 @@ Predict AI/ML salaries using XGBoost, FastAPI, Streamlit, and MLFlow.
 
 **Live Demo:** [Frontend](https://your-app.streamlit.app) | [API](https://your-api.run.app)
 
+## Pipeline
+
+```mermaid
+graph LR
+    A[H1B Data] --> D[Merge]
+    B[BLS Stats] --> D
+    C[Job Postings] --> D
+    D --> E[Train XGBoost]
+    E --> F[MLFlow]
+    E --> G[FastAPI]
+    G --> H[Streamlit UI]
+```
+
 ## Quick Start
 
 ```bash
