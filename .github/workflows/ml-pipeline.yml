@@ -1,0 +1,128 @@
+name: ML Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Collect data
+        env:
+          BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
+          ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
+          ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
+        run: python -m src.main collect --source all
+
+      - name: Summary
+        run: |
+          echo "## Data Collection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Source | Records |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          for f in data/raw/*.parquet; do
+            name=$(basename "$f" .parquet)
+            count=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))" 2>/dev/null || echo "0")
+            echo "| $name | $count |" >> $GITHUB_STEP_SUMMARY
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raw-data
+          path: data/raw/
+          retention-days: 1
+
+  merge:
+    needs: collect
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: raw-data
+          path: data/raw/
+
+      - name: Merge data
+        run: python -m src.main merge
+
+      - name: Summary
+        run: |
+          echo "## Data Merge" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          python -c "
+          import pandas as pd
+          df = pd.read_parquet('data/processed/merged_salary_data.parquet')
+          print(f'**Total records:** {len(df)}')
+          print(f'')
+          print(f'**Salary range:** \${df[\"annual_salary\"].min():,.0f} - \${df[\"annual_salary\"].max():,.0f}')
+          print(f'')
+          print(f'**Median salary:** \${df[\"annual_salary\"].median():,.0f}')
+          " >> $GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: processed-data
+          path: data/processed/
+          retention-days: 1
+
+  train:
+    needs: merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: processed-data
+          path: data/processed/
+
+      - name: Train model
+        run: python -m src.main train 2>&1 | tee train.log
+
+      - name: Summary
+        run: |
+          echo "## Model Training" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Metrics" >> $GITHUB_STEP_SUMMARY
+          grep -A6 "Test Metrics:" train.log | tail -5 >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Top Features" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A15 "Top 15" train.log | tail -15 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: model
+          path: models/
+          retention-days: 7
