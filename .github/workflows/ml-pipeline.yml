@@ -8,6 +8,13 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
+  S3_BUCKET: ai-salary-predictor
+  AWS_REGION: us-east-1
+
+# Required for OIDC authentication with AWS
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
   collect:
@@ -46,6 +53,22 @@ jobs:
           name: raw-data
           path: data/raw/
           retention-days: 1
+
+      # Upload raw data to S3
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload raw data to S3
+        if: github.event_name != 'pull_request'
+        run: |
+          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/ \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+          echo "Raw data uploaded to s3://${{ env.S3_BUCKET }}/data/raw/"
 
   merge:
     needs: collect
@@ -88,6 +111,22 @@ jobs:
           path: data/processed/
           retention-days: 1
 
+      # Upload processed data to S3
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload processed data to S3
+        if: github.event_name != 'pull_request'
+        run: |
+          aws s3 sync data/processed/ s3://${{ env.S3_BUCKET }}/data/processed/ \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+          echo "Processed data uploaded to s3://${{ env.S3_BUCKET }}/data/processed/"
+
   train:
     needs: merge
     runs-on: ubuntu-latest
@@ -114,11 +153,11 @@ jobs:
           echo "## Model Training" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Metrics" >> $GITHUB_STEP_SUMMARY
-          grep -A6 "Test Metrics:" train.log | tail -5 >> $GITHUB_STEP_SUMMARY
+          grep -A6 "Test Metrics:" train.log | tail -5 >> $GITHUB_STEP_SUMMARY || echo "No test metrics found"
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Top Features" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -A15 "Top 15" train.log | tail -15 >> $GITHUB_STEP_SUMMARY
+          grep -A15 "Top 15" train.log | tail -15 >> $GITHUB_STEP_SUMMARY || echo "No feature importance found"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - uses: actions/upload-artifact@v4
@@ -126,3 +165,30 @@ jobs:
           name: model
           path: models/
           retention-days: 7
+          if-no-files-found: warn
+
+      # Upload model to S3
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload model to S3
+        if: github.event_name != 'pull_request'
+        run: |
+          # Upload with timestamp for versioning
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+
+          # Upload to versioned path
+          aws s3 sync models/ s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/ \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+
+          # Also upload to 'latest' path
+          aws s3 sync models/ s3://${{ env.S3_BUCKET }}/models/latest/ \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }},timestamp=${TIMESTAMP}"
+
+          echo "Model uploaded to s3://${{ env.S3_BUCKET }}/models/latest/"
+          echo "Model versioned at s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/"
