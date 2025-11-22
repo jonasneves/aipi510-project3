@@ -69,6 +69,12 @@ api:
   port: 8000
   model_path: "models/salary_model_latest.pkl"
 
+# MLFlow Configuration
+mlflow:
+  experiment_name: "salary_prediction"
+  tracking_uri: "file:./mlruns"
+  model_name: "salary_predictor"
+
 # S3 Configuration
 s3:
   bucket: "ai-salary-predictor"

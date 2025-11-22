@@ -108,8 +108,29 @@ def train_model(args):
     print("AI Salary Negotiation Intelligence - Model Training")
     print("=" * 60)
 
+    import yaml
+    import mlflow
+
     from .processing import DataMerger, FeatureEngineer
     from .models import SalaryPredictor
+
+    # Load config for MLFlow settings
+    config_path = Path("config.yaml")
+    if config_path.exists():
+        with open(config_path) as f:
+            config = yaml.safe_load(f)
+        mlflow_config = config.get("mlflow", {})
+    else:
+        mlflow_config = {}
+
+    # Set up MLFlow
+    tracking_uri = mlflow_config.get("tracking_uri", "file:./mlruns")
+    experiment_name = mlflow_config.get("experiment_name", "salary_prediction")
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.set_experiment(experiment_name)
+
+    print(f"\nMLFlow tracking URI: {tracking_uri}")
+    print(f"MLFlow experiment: {experiment_name}")
 
     # Load and prepare data
     print("\nLoading data...")
@@ -166,35 +187,69 @@ def train_model(args):
     X_test = to_numeric_df(test_df, feature_cols)
     y_test = test_df[target_col].astype(float)
 
-    # Train model
+    # Train model with MLFlow tracking
     print("\nTraining XGBoost model...")
     predictor = SalaryPredictor(model_dir=args.model_dir)
 
-    if args.tune:
-        print("\nPerforming hyperparameter tuning...")
-        predictor.tune_hyperparameters(X_train, y_train)
+    with mlflow.start_run() as run:
+        print(f"MLFlow run ID: {run.info.run_id}")
 
-    predictor.train(X_train, y_train, X_val, y_val)
+        # Log dataset info
+        mlflow.log_param("train_samples", len(X_train))
+        mlflow.log_param("test_samples", len(X_test))
+        mlflow.log_param("n_features", len(feature_cols))
 
-    # Cross-validation
-    if args.cv:
-        predictor.cross_validate(
-            pd.concat([X_train, X_val]) if X_val is not None else X_train,
-            pd.concat([y_train, y_val]) if y_val is not None else y_train,
-        )
+        # Log model parameters
+        for param, value in predictor.params.items():
+            mlflow.log_param(param, value)
 
-    # Evaluate on test set
-    print("\nEvaluating on test set...")
-    metrics = predictor.evaluate(X_test, y_test)
+        if args.tune:
+            print("\nPerforming hyperparameter tuning...")
+            predictor.tune_hyperparameters(X_train, y_train)
 
-    # Feature importance
-    print("\nTop 15 Most Important Features:")
-    importance_df = predictor.get_feature_importance(top_n=15)
-    for _, row in importance_df.iterrows():
-        print(f"  {row['feature']}: {row['importance']:.4f}")
+        predictor.train(X_train, y_train, X_val, y_val)
 
-    # Save model
-    predictor.save("salary_model")
+        # Log training metrics
+        if "train" in predictor.training_metrics:
+            for metric, value in predictor.training_metrics["train"].items():
+                mlflow.log_metric(f"train_{metric}", value)
+        if "validation" in predictor.training_metrics:
+            for metric, value in predictor.training_metrics["validation"].items():
+                mlflow.log_metric(f"val_{metric}", value)
+
+        # Cross-validation
+        if args.cv:
+            predictor.cross_validate(
+                pd.concat([X_train, X_val]) if X_val is not None else X_train,
+                pd.concat([y_train, y_val]) if y_val is not None else y_train,
+            )
+
+        # Evaluate on test set
+        print("\nEvaluating on test set...")
+        metrics = predictor.evaluate(X_test, y_test)
+
+        # Log test metrics
+        for metric, value in metrics.items():
+            mlflow.log_metric(f"test_{metric}", value)
+
+        # Feature importance
+        print("\nTop 15 Most Important Features:")
+        importance_df = predictor.get_feature_importance(top_n=15)
+        for _, row in importance_df.iterrows():
+            print(f"  {row['feature']}: {row['importance']:.4f}")
+
+        # Save model
+        model_path = predictor.save("salary_model")
+
+        # Log model artifact to MLFlow
+        mlflow.log_artifact(str(model_path))
+
+        # Log feature importance as artifact
+        importance_path = Path(args.model_dir) / "feature_importance.csv"
+        importance_df.to_csv(importance_path, index=False)
+        mlflow.log_artifact(str(importance_path))
+
+        print(f"\nMLFlow run completed: {run.info.run_id}")
 
     print("\n" + "=" * 60)
     print("Model training complete!")

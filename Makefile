@@ -11,6 +11,7 @@ help:
 	@echo "  make train        - Train the salary prediction model"
 	@echo "  make predict      - Run interactive prediction"
 	@echo "  make pipeline     - Run complete pipeline (collect + merge + train)"
+	@echo "  make mlflow       - Start MLFlow UI (port 5000)"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-build - Build Docker image"
@@ -43,6 +44,9 @@ pipeline: collect merge train
 
 api:
 	uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+
+mlflow:
+	mlflow ui --host 0.0.0.0 --port 5000
 
 test:
 	pytest tests/ -v

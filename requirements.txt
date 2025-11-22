@@ -25,6 +25,10 @@ fastapi>=0.104.0
 uvicorn>=0.24.0
 pydantic>=2.0.0
 
+# Experiment tracking
+mlflow>=2.9.0
+pyyaml>=6.0
+
 # Utilities
 python-dotenv>=1.0.0
 tqdm>=4.65.0
