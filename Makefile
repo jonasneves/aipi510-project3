@@ -12,6 +12,8 @@ help:
 	@echo "  make predict      - Run interactive prediction"
 	@echo "  make pipeline     - Run complete pipeline (collect + merge + train)"
 	@echo "  make mlflow       - Start MLFlow UI (port 5000)"
+	@echo "  make api          - Start FastAPI server (port 8000)"
+	@echo "  make frontend     - Start Streamlit frontend (port 8501)"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-build - Build Docker image"
@@ -47,6 +49,9 @@ api:
 
 mlflow:
 	mlflow ui --host 0.0.0.0 --port 5000
+
+frontend:
+	streamlit run frontend/app.py --server.port 8501
 
 test:
 	pytest tests/ -v

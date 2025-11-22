@@ -36,6 +36,21 @@ services:
       retries: 3
       start_period: 40s
 
+  frontend:
+    build:
+      context: .
+      target: frontend
+    container_name: salary-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - PYTHONUNBUFFERED=1
+    networks:
+      - salary-network
+    depends_on:
+      - api
+    restart: unless-stopped
+
 networks:
   salary-network:
     driver: bridge

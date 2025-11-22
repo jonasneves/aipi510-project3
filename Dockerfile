@@ -42,6 +42,16 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
+# Frontend stage
+FROM base as frontend
+
+COPY frontend/ ./frontend/
+
+EXPOSE 8501
+
+CMD ["streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+
+
 # Complete stage for development
 FROM base as complete
 
