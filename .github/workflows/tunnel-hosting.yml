@@ -1,0 +1,217 @@
+name: Tunnel Hosting
+
+on:
+  workflow_dispatch:
+    inputs:
+      duration_hours:
+        description: 'How long to run (max 5.5 hours)'
+        required: false
+        default: '5.5'
+      auto_restart:
+        description: 'Auto-restart before timeout'
+        required: false
+        default: 'true'
+        type: boolean
+  repository_dispatch:
+    types: [restart-tunnel]
+
+concurrency:
+  group: tunnel-hosting
+  cancel-in-progress: false
+
+jobs:
+  host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350  # 5h 50min (under 6h limit)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install uvicorn streamlit
+
+      - name: Download model or train
+        env:
+          AWS_REGION: us-east-1
+        run: |
+          # Try to download pre-trained model
+          if [ -n "${{ secrets.AWS_ACCESS_KEY_ID }}" ]; then
+            aws s3 cp s3://ai-salary-predictor/models/ models/ --recursive || echo "No S3 model"
+          fi
+
+          # Train if no model exists
+          if [ ! -f models/salary_model.joblib ]; then
+            echo "Training model..."
+            mkdir -p models
+            python -m src.main collect --source all || true
+            python -m src.main merge || true
+            python -m src.main train || echo "Using sample data for demo"
+          fi
+
+      - name: Install cloudflared
+        run: |
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          chmod +x cloudflared
+          sudo mv cloudflared /usr/local/bin/
+
+      - name: Start services and tunnels
+        id: services
+        run: |
+          # Check if we have a permanent tunnel configured
+          if [ -n "${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}" ]; then
+            echo "=== Using permanent Cloudflare tunnel ==="
+
+            # Start API
+            uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+            sleep 3
+
+            # Start Frontend (uses localhost API)
+            streamlit run frontend/app.py --server.port 8501 --server.headless true &
+            sleep 3
+
+            # Start tunnel (routes both services)
+            cloudflared tunnel --no-autoupdate run --token ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }} &
+
+            echo "Tunnel running with configured domain"
+            echo "api_url=https://api.yourdomain.com" >> $GITHUB_OUTPUT
+            echo "frontend_url=https://app.yourdomain.com" >> $GITHUB_OUTPUT
+          else
+            echo "=== Using quick tunnels (trycloudflare.com) ==="
+
+            # 1. Start API server
+            echo "Starting API server..."
+            uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+            sleep 5
+            curl -s http://localhost:8000/health || echo "API starting..."
+
+            # 2. Start API tunnel
+            echo "Starting API tunnel..."
+            cloudflared tunnel --no-autoupdate --url http://localhost:8000 --logfile /tmp/api-tunnel.log 2>&1 &
+
+            # Wait for tunnel URL
+            for i in {1..30}; do
+              API_URL=$(grep -o 'https://[^"]*\.trycloudflare\.com' /tmp/api-tunnel.log 2>/dev/null | head -1)
+              if [ -n "$API_URL" ]; then
+                break
+              fi
+              sleep 1
+            done
+            echo "API URL: $API_URL"
+            echo "api_url=$API_URL" >> $GITHUB_OUTPUT
+
+            # 3. Start Frontend with API URL
+            echo "Starting Frontend with API_URL=$API_URL..."
+            API_URL="$API_URL" streamlit run frontend/app.py --server.port 8501 --server.headless true &
+            sleep 5
+
+            # 4. Start Frontend tunnel
+            echo "Starting Frontend tunnel..."
+            cloudflared tunnel --no-autoupdate --url http://localhost:8501 --logfile /tmp/frontend-tunnel.log 2>&1 &
+
+            # Wait for tunnel URL
+            for i in {1..30}; do
+              FRONTEND_URL=$(grep -o 'https://[^"]*\.trycloudflare\.com' /tmp/frontend-tunnel.log 2>/dev/null | head -1)
+              if [ -n "$FRONTEND_URL" ]; then
+                break
+              fi
+              sleep 1
+            done
+            echo "Frontend URL: $FRONTEND_URL"
+            echo "frontend_url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+
+            echo ""
+            echo "=========================================="
+            echo "TUNNEL URLS (valid for this session)"
+            echo "=========================================="
+            echo "API:      $API_URL"
+            echo "Frontend: $FRONTEND_URL"
+            echo "=========================================="
+          fi
+
+      - name: Keep services running
+        env:
+          API_URL: ${{ steps.services.outputs.api_url }}
+          FRONTEND_URL: ${{ steps.services.outputs.frontend_url }}
+        run: |
+          HOURS="${{ github.event.inputs.duration_hours || '5.5' }}"
+          DURATION=$(echo "$HOURS * 3600" | bc | cut -d. -f1)
+          START_TIME=$(date +%s)
+          RESTART_THRESHOLD=$((DURATION - 300))  # 5 min before end
+          RESTART_TRIGGERED=false
+
+          echo "Services running for $HOURS hours ($DURATION seconds)"
+          echo "API:      $API_URL"
+          echo "Frontend: $FRONTEND_URL"
+
+          while true; do
+            ELAPSED=$(($(date +%s) - START_TIME))
+            REMAINING=$((DURATION - ELAPSED))
+
+            # Health checks
+            API_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8000/health 2>/dev/null || echo "000")
+            FRONTEND_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8501 2>/dev/null || echo "000")
+
+            printf "[%s] Elapsed: %ds | Remaining: %ds | API: %s | Frontend: %s\n" \
+              "$(date '+%H:%M:%S')" "$ELAPSED" "$REMAINING" "$API_STATUS" "$FRONTEND_STATUS"
+
+            # Restart API if down
+            if [ "$API_STATUS" != "200" ]; then
+              echo "Restarting API..."
+              pkill -f "uvicorn api.main:app" || true
+              uvicorn api.main:app --host 0.0.0.0 --port 8000 &
+              sleep 5
+            fi
+
+            # Restart Frontend if down
+            if [ "$FRONTEND_STATUS" != "200" ]; then
+              echo "Restarting Frontend..."
+              pkill -f "streamlit run" || true
+              API_URL="$API_URL" streamlit run frontend/app.py --server.port 8501 --server.headless true &
+              sleep 5
+            fi
+
+            # Trigger restart workflow before timeout
+            if [ "$ELAPSED" -gt "$RESTART_THRESHOLD" ] && [ "$RESTART_TRIGGERED" = "false" ]; then
+              if [ "${{ github.event.inputs.auto_restart }}" = "true" ]; then
+                echo "Triggering restart workflow..."
+                curl -X POST \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  https://api.github.com/repos/${{ github.repository }}/dispatches \
+                  -d '{"event_type":"restart-tunnel"}' || echo "Could not trigger restart"
+                RESTART_TRIGGERED=true
+              fi
+            fi
+
+            # Exit if duration reached
+            if [ "$ELAPSED" -gt "$DURATION" ]; then
+              echo "Duration reached, shutting down..."
+              break
+            fi
+
+            sleep 60
+          done
+
+      - name: Cleanup
+        if: always()
+        run: |
+          pkill -f cloudflared || true
+          pkill -f uvicorn || true
+          pkill -f streamlit || true
+
+  notify:
+    needs: host
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Session ended
+        run: |
+          echo "Tunnel hosting session ended: ${{ needs.host.result }}"

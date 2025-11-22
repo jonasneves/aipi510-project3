@@ -4,6 +4,8 @@ Streamlit frontend for AI Salary Prediction.
 Run with: streamlit run frontend/app.py
 """
 
+import os
+
 import requests
 import streamlit as st
 
@@ -14,10 +16,11 @@ st.set_page_config(
     layout="centered",
 )
 
-# API endpoint (configurable)
+# API endpoint (configurable via env or sidebar)
+DEFAULT_API_URL = os.environ.get("API_URL", "http://localhost:8000")
 API_URL = st.sidebar.text_input(
     "API URL",
-    value="http://localhost:8000",
+    value=DEFAULT_API_URL,
     help="URL of the prediction API",
 )
 
