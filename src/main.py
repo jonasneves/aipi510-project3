@@ -231,16 +231,12 @@ def predict(args):
         "job_title": job_title,
         "employer_name": company,
         "worksite_state": location.upper(),
-        "annual_salary": 0,
     }])
 
-    # Engineer features
+    # Engineer features (don't use prepare_for_modeling - it filters by salary)
     engineer = FeatureEngineer()
-    data, feature_cols, _ = engineer.prepare_for_modeling(data, fit=False)
-
-    if not feature_cols:
-        print("Error: Could not generate features")
-        return
+    data = engineer.engineer_features(data)
+    data = engineer.encode_categoricals(data, fit=True)
 
     # Set experience
     if "estimated_yoe" in data.columns:
@@ -255,8 +251,16 @@ def predict(args):
                 if any(skill_name in s or s in skill_name for s in skills_lower):
                     data[col] = 1
 
-    # Make prediction
-    X = data[feature_cols].fillna(0)
+    # Build feature vector matching model's expected features
+    X = pd.DataFrame(index=[0])
+    for col in predictor.feature_names:
+        if col in data.columns:
+            val = data[col].iloc[0]
+            X[col] = pd.to_numeric(val, errors='coerce') if not isinstance(val, (int, float)) else val
+        else:
+            X[col] = 0
+    X = X.fillna(0)
+
     result = predictor.predict_with_range(X)
 
     # Display results
