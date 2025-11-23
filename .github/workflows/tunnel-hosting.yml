@@ -211,9 +211,16 @@ jobs:
           # Calculate duration
           HOURS="${{ github.event.inputs.duration_hours || '5.5' }}"
           DURATION=$(echo "$HOURS * 3600" | bc | cut -d. -f1)
-          RESTART_THRESHOLD=$((DURATION - 300))
+          # Trigger restart 6 minutes before timeout (3 min handoff wait + 3 min buffer)
+          RESTART_THRESHOLD=$((DURATION - 360))
           START_TIME=$(date +%s)
           RESTART_TRIGGERED=false
+
+          # Auto-restart defaults to true unless explicitly set to false
+          AUTO_RESTART="${{ github.event.inputs.auto_restart }}"
+          if [ -z "$AUTO_RESTART" ]; then
+            AUTO_RESTART="true"
+          fi
 
           echo ""
           echo "=========================================="
@@ -269,13 +276,47 @@ jobs:
 
             # Trigger restart before timeout
             if [ "$ELAPSED" -gt "$RESTART_THRESHOLD" ] && [ "$RESTART_TRIGGERED" = "false" ]; then
-              if [ "${{ github.event.inputs.auto_restart }}" = "true" ]; then
+              if [ "$AUTO_RESTART" = "true" ]; then
+                echo ""
+                echo "=========================================="
                 echo "Triggering restart workflow..."
-                curl -sX POST \
+                echo "=========================================="
+
+                # IMPORTANT: GITHUB_TOKEN cannot trigger workflows (security limitation)
+                # Must use a Personal Access Token with 'repo' scope stored as WORKFLOW_PAT
+                RESPONSE=$(curl -sX POST \
                   -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+                  -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
+                  -H "X-GitHub-Api-Version: 2022-11-28" \
                   https://api.github.com/repos/${{ github.repository }}/dispatches \
-                  -d '{"event_type":"restart-tunnel"}' || true
+                  -d '{"event_type":"restart-tunnel"}' \
+                  -w "\n%{http_code}" 2>&1)
+
+                HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+                if [ "$HTTP_CODE" = "204" ]; then
+                  echo "✓ Restart triggered successfully!"
+                  echo "New runner will start shortly..."
+                  echo ""
+                  echo "Waiting 3 minutes to allow new runner to initialize..."
+                  echo "This ensures graceful handoff with minimal downtime."
+
+                  # Wait for new runner to start building
+                  # This gives ~3 min for new runner to: checkout, install deps, start services
+                  for i in {1..18}; do
+                    printf "  Handoff wait: %d/180 seconds...\r" "$((i * 10))"
+                    sleep 10
+                  done
+                  echo ""
+                  echo "Handoff wait complete. New runner should be ready."
+                else
+                  echo "✗ Failed to trigger restart (HTTP $HTTP_CODE)"
+                  echo "Response: $RESPONSE"
+                  echo ""
+                  echo "To fix: Create a Personal Access Token with 'repo' scope"
+                  echo "and add it as repository secret named WORKFLOW_PAT"
+                fi
+
                 RESTART_TRIGGERED=true
               fi
             fi
