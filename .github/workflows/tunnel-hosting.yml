@@ -94,7 +94,7 @@ jobs:
         if: steps.build-cache.outputs.cache-hit != 'true'
         run: |
           cd frontend-react
-          VITE_API_URL=https://api-salary.neevs.io npm run build
+          npm run build
 
       # Configure AWS to check model timestamp
       - name: Configure AWS credentials
@@ -159,14 +159,14 @@ jobs:
             echo "=== Shutting down ==="
             pkill -f cloudflared || true
             pkill -f uvicorn || true
-            pkill -f "python -m http.server" || true
+            sudo nginx -s stop 2>/dev/null || true
             exit 0
           }
           trap cleanup SIGTERM SIGINT
 
           # Start API with logging
           echo "=== Starting API ==="
-          uvicorn api.main:app --host 0.0.0.0 --port 8000 2>&1 | tee /tmp/api.log &
+          uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee /tmp/api.log &
           API_PID=$!
           echo "API PID: $API_PID"
 
@@ -183,14 +183,46 @@ jobs:
           # Check API health
           curl -s http://localhost:8000/health || { echo "API failed to start"; cat /tmp/api.log; exit 1; }
 
-          # Start Frontend (serve built React app)
+          # Configure and start nginx to serve frontend + proxy /api
           echo ""
-          echo "=== Starting Frontend ==="
-          cd frontend-react/dist && python -m http.server 8501 2>&1 | tee /tmp/frontend.log &
-          cd ../..
-          FRONTEND_PID=$!
-          echo "Frontend PID: $FRONTEND_PID"
-          sleep 5
+          echo "=== Starting Nginx (Frontend + API Proxy) ==="
+          sudo apt-get update -qq && sudo apt-get install -y -qq nginx
+
+          # Write nginx config
+          sudo tee /etc/nginx/sites-available/aisalary > /dev/null <<'NGINX'
+          server {
+              listen 8501;
+              server_name _;
+
+              # Serve frontend static files
+              root $PWD/frontend-react/dist;
+              index index.html;
+
+              # Proxy /api requests to backend
+              location /api/ {
+                  proxy_pass http://127.0.0.1:8000/;
+                  proxy_http_version 1.1;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+                  client_max_body_size 10M;
+              }
+
+              # SPA routing - serve index.html for all non-file routes
+              location / {
+                  try_files $uri $uri/ /index.html;
+              }
+          }
+          NGINX
+
+          # Update nginx config with actual path
+          sudo sed -i "s|\$PWD|$(pwd)|g" /etc/nginx/sites-available/aisalary
+          sudo rm -f /etc/nginx/sites-enabled/default
+          sudo ln -sf /etc/nginx/sites-available/aisalary /etc/nginx/sites-enabled/
+          sudo nginx -t && sudo nginx
+          echo "Nginx started on port 8501"
+          sleep 3
 
           # Start Cloudflare Tunnel with logging
           echo ""
@@ -215,8 +247,8 @@ jobs:
           echo ""
           echo "=========================================="
           echo "Services running for $HOURS hours"
-          echo "API:      http://localhost:8000"
-          echo "Frontend: http://localhost:8501"
+          echo "App:      https://aisalary.neevs.io"
+          echo "API:      https://aisalary.neevs.io/api"
           echo "=========================================="
           echo ""
 
@@ -229,11 +261,11 @@ jobs:
 
             # Health checks
             API_OK=$(curl -sf http://localhost:8000/health > /dev/null 2>&1 && echo "OK" || echo "DOWN")
-            FRONTEND_OK=$(curl -sf http://localhost:8501 > /dev/null 2>&1 && echo "OK" || echo "DOWN")
+            NGINX_OK=$(curl -sf http://localhost:8501 > /dev/null 2>&1 && echo "OK" || echo "DOWN")
             TUNNEL_OK=$(pgrep -f cloudflared > /dev/null && echo "OK" || echo "DOWN")
 
-            printf "[%s] API: %s | Frontend: %s | Tunnel: %s | Elapsed: %dm | Remaining: %dm\n" \
-              "$(date '+%H:%M:%S')" "$API_OK" "$FRONTEND_OK" "$TUNNEL_OK" "$((ELAPSED/60))" "$((REMAINING/60))"
+            printf "[%s] API: %s | Nginx: %s | Tunnel: %s | Elapsed: %dm | Remaining: %dm\n" \
+              "$(date '+%H:%M:%S')" "$API_OK" "$NGINX_OK" "$TUNNEL_OK" "$((ELAPSED/60))" "$((REMAINING/60))"
 
             # Show recent logs every 5 iterations
             if [ $((LOOP_COUNT % 5)) -eq 0 ]; then
@@ -246,16 +278,15 @@ jobs:
             if [ "$API_OK" = "DOWN" ]; then
               echo "Restarting API..."
               pkill -f "uvicorn api.main:app" || true
-              uvicorn api.main:app --host 0.0.0.0 --port 8000 2>&1 | tee -a /tmp/api.log &
+              uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee -a /tmp/api.log &
               sleep 5
             fi
 
-            if [ "$FRONTEND_OK" = "DOWN" ]; then
-              echo "Restarting Frontend..."
-              pkill -f "python -m http.server" || true
-              cd frontend-react/dist && python -m http.server 8501 2>&1 | tee -a /tmp/frontend.log &
-              cd ../..
-              sleep 5
+            if [ "$NGINX_OK" = "DOWN" ]; then
+              echo "Restarting Nginx..."
+              sudo nginx -s stop 2>/dev/null || true
+              sudo nginx
+              sleep 3
             fi
 
             if [ "$TUNNEL_OK" = "DOWN" ]; then
@@ -294,8 +325,8 @@ jobs:
           echo "=== API Log ==="
           cat /tmp/api.log 2>/dev/null || echo "No API log"
           echo ""
-          echo "=== Frontend Log ==="
-          cat /tmp/frontend.log 2>/dev/null || echo "No frontend log"
+          echo "=== Nginx Error Log ==="
+          sudo cat /var/log/nginx/error.log 2>/dev/null | tail -50 || echo "No nginx log"
           echo ""
           echo "=== Tunnel Log ==="
           cat /tmp/tunnel.log 2>/dev/null || echo "No tunnel log"

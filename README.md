@@ -2,12 +2,12 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
-[![API Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/api&label=API)](https://api-salary.neevs.io)
-[![App Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/app&label=App)](https://app-salary.neevs.io)
+[![API Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/api&label=API)](https://aisalary.neevs.io/api)
+[![App Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/app&label=App)](https://aisalary.neevs.io)
 
 Predict AI/ML salaries using XGBoost, FastAPI, React, and MLFlow.
 
-**Live Demo:** [Frontend](https://app-salary.neevs.io) | [API](https://api-salary.neevs.io)
+**Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs)
 
 ## Pipeline
 

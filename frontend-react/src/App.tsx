@@ -5,7 +5,8 @@ import { Select } from './components/ui/select'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './components/ui/card'
 import { Slider } from './components/ui/slider'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Use relative /api path in production (same origin), fallback to localhost for dev
+const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api')
 
 interface Options {
   job_titles: string[]
