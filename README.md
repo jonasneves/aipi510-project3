@@ -29,6 +29,10 @@ graph LR
     G --> H[React UI]
 ```
 
+## Architecture
+
+![Architecture Diagram](architecture.png)
+
 ## Quick Start
 
 ```bash
