@@ -3,7 +3,17 @@ name: ML Pipeline
 on:
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'config.yaml'
+      - 'requirements.txt'
+      - '.github/workflows/ml-pipeline.yml'
   pull_request:
+    paths:
+      - 'src/**'
+      - 'config.yaml'
+      - 'requirements.txt'
+      - '.github/workflows/ml-pipeline.yml'
   workflow_dispatch:
     inputs:
       force_collect:
