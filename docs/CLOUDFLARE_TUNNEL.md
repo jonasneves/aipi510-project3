@@ -12,56 +12,29 @@ Host the API and frontend on GitHub Actions with Cloudflare tunnels.
 
 ### 1. Create Cloudflare Tunnel
 
-```bash
-# Install cloudflared
-brew install cloudflare/cloudflare/cloudflared  # macOS
+In Cloudflare Zero Trust dashboard:
+1. Go to **Networks** > **Tunnels**
+2. Click **Create a tunnel**
+3. Name it (e.g., `salary-predictor`)
+4. Copy the tunnel token
 
-# Login and create tunnel
-cloudflared tunnel login
-cloudflared tunnel create salary-predictor
+### 2. Configure Public Hostname
 
-# Note the tunnel ID
-```
+Add a public hostname for your tunnel:
 
-### 2. Configure Tunnel Routes
+| Setting | Value |
+|---------|-------|
+| Subdomain | `aisalary` |
+| Domain | `neevs.io` (your domain) |
+| Service | `HTTP://localhost:8501` |
 
-In Cloudflare Zero Trust dashboard (or via CLI):
+Nginx on port 8501 handles both frontend and `/api` proxy.
 
-```bash
-# Route API
-cloudflared tunnel route dns salary-predictor api-salary.neevs.io
-
-# Route Frontend
-cloudflared tunnel route dns salary-predictor app-salary.neevs.io
-```
-
-### 3. Create Tunnel Config
-
-Create `~/.cloudflared/config.yml`:
-
-```yaml
-tunnel: <TUNNEL_ID>
-credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
-
-ingress:
-  - hostname: api-salary.neevs.io
-    service: http://localhost:8000
-  - hostname: app-salary.neevs.io
-    service: http://localhost:8501
-  - service: http_status:404
-```
-
-### 4. Get Tunnel Token
-
-```bash
-cloudflared tunnel token <TUNNEL_ID>
-```
-
-### 5. Add GitHub Secrets
+### 3. Add GitHub Secrets
 
 | Secret | Description |
 |--------|-------------|
-| `CLOUDFLARE_TUNNEL_TOKEN` | From step 4 |
+| `CLOUDFLARE_TUNNEL_TOKEN` | From step 1 |
 | `AWS_ROLE_ARN` | IAM role for S3 access |
 
 ## Architecture
@@ -71,13 +44,14 @@ Internet
     |
 Cloudflare Edge
     |
-    ├── api-salary.neevs.io ──┐
-    └── app-salary.neevs.io ──┼── Tunnel ── GitHub Runner
-                              │              ├── API :8000
-                              │              └── Frontend :8501
+aisalary.neevs.io ── Tunnel ── GitHub Runner
+                                  |
+                               Nginx :8501
+                                  ├── /api/* → API :8000
+                                  └── /* → React static files
 ```
 
-The frontend uses `http://localhost:8000` for API calls since both run on the same runner.
+Single domain with nginx routing `/api/*` to the backend.
 
 ## Usage
 

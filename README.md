@@ -9,6 +9,13 @@ Predict AI/ML salaries using XGBoost, FastAPI, React, and MLFlow.
 
 **Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs)
 
+## Features
+
+- **Resume Upload** - Drag & drop your resume (PDF/DOCX) to auto-fill job details
+- **Real-time Predictions** - Salary updates instantly as you change inputs
+- **Smart Parsing** - Extracts job title, skills, experience, and location from resumes
+- **Confidence Intervals** - Shows 90% CI salary range, not just point estimate
+
 ## Pipeline
 
 ```mermaid
@@ -32,15 +39,16 @@ make api               # Start API (port 8000)
 make frontend          # Start React dev server (port 5173)
 ```
 
-## Features
+## Tech Stack
 
-- Predicts salaries based on job title, location, experience, company, skills
-- Data from H1B filings, BLS statistics, job postings
-- MLFlow experiment tracking
-- REST API with FastAPI
-- Modern React UI with Tailwind CSS
-- Docker support
-- CI/CD with GitHub Actions + S3 caching
+| Layer | Technology |
+|-------|------------|
+| ML | XGBoost, scikit-learn, pandas |
+| API | FastAPI, Pydantic |
+| Frontend | React, Vite, Tailwind CSS |
+| Tracking | MLFlow |
+| Storage | AWS S3 |
+| Hosting | GitHub Actions + Cloudflare Tunnel |
 
 ## Project Structure
 
@@ -54,19 +62,28 @@ Dockerfile            # Multi-stage builds
 docker-compose.yml    # Service orchestration
 ```
 
+## API
+
+```bash
+# Predict salary
+curl -X POST https://aisalary.neevs.io/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"job_title": "ML Engineer", "location": "CA", "experience_years": 5}'
+
+# Parse resume
+curl -X POST https://aisalary.neevs.io/api/parse-resume \
+  -F "file=@resume.pdf"
+
+# Get options
+curl https://aisalary.neevs.io/api/options
+```
+
 ## Documentation
 
 - [Setup Guide](docs/SETUP.md) - Local development
 - [Deployment Guide](docs/DEPLOYMENT.md) - Cloud deployment
+- [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL.md) - Hosting setup
 - [AWS Setup](AWS_SETUP.md) - S3 and OIDC configuration
-
-## API
-
-```bash
-curl -X POST http://localhost:8000/predict \
-  -H "Content-Type: application/json" \
-  -d '{"job_title": "ML Engineer", "location": "CA", "experience_years": 5}'
-```
 
 ## License
 
