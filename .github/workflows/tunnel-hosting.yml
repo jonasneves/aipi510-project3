@@ -162,14 +162,14 @@ jobs:
             echo "=== Shutting down ==="
             pkill -f cloudflared || true
             pkill -f uvicorn || true
-            sudo nginx -s stop 2>/dev/null || true
+            pkill -f "serve.*8501" || true
             exit 0
           }
           trap cleanup SIGTERM SIGINT
 
-          # Start API with logging
+          # Start API on port 8000 (Cloudflare routes /api here)
           echo "=== Starting API ==="
-          uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee /tmp/api.log &
+          uvicorn api.main:app --host 127.0.0.1 --port 8000 --root-path /api 2>&1 | tee /tmp/api.log &
           API_PID=$!
           echo "API PID: $API_PID"
 
@@ -186,42 +186,14 @@ jobs:
           # Check API health
           curl -s http://localhost:8000/health || { echo "API failed to start"; cat /tmp/api.log; exit 1; }
 
-          # Configure and start nginx to serve frontend + proxy /api
+          # Start static file server on port 8501 (Cloudflare routes /* here)
           echo ""
-          echo "=== Starting Nginx (Frontend + API Proxy) ==="
-          sudo apt-get update -qq && sudo apt-get install -y -qq nginx
-
-          # Write nginx config
-          FRONTEND_ROOT="$(pwd)/frontend-react/dist"
-          echo "server {
-            listen 8501;
-            server_name _;
-            root $FRONTEND_ROOT;
-            index index.html;
-            location /api/ {
-              proxy_pass http://127.0.0.1:8000/;
-              proxy_http_version 1.1;
-              proxy_set_header Host \$host;
-              proxy_set_header X-Real-IP \$remote_addr;
-              proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-              proxy_set_header X-Forwarded-Proto \$scheme;
-              client_max_body_size 10M;
-            }
-            location / {
-              try_files \$uri \$uri/ /index.html;
-            }
-          }" | sudo tee /etc/nginx/sites-available/aisalary > /dev/null
-
-          sudo rm -f /etc/nginx/sites-enabled/default
-          sudo ln -sf /etc/nginx/sites-available/aisalary /etc/nginx/sites-enabled/
-
-          # Test and restart nginx (it may already be running from apt install)
-          sudo nginx -t
-          sudo systemctl restart nginx || sudo nginx -s reload || (sudo nginx -s stop; sudo nginx)
-
-          # Verify nginx is serving
-          sleep 2
-          curl -sf http://localhost:8501 && echo "Nginx is serving on port 8501" || echo "Warning: Nginx health check failed"
+          echo "=== Starting Frontend ==="
+          npx serve -s frontend-react/dist -l 8501 &
+          SERVE_PID=$!
+          echo "Frontend PID: $SERVE_PID"
+          sleep 3
+          curl -sf http://localhost:8501 && echo "Frontend is ready" || echo "Warning: Frontend health check failed"
 
           # Start Cloudflare Tunnel with logging
           echo ""
@@ -260,11 +232,11 @@ jobs:
 
             # Health checks
             API_OK=$(curl -sf http://localhost:8000/health > /dev/null 2>&1 && echo "OK" || echo "DOWN")
-            NGINX_OK=$(curl -sf http://localhost:8501 > /dev/null 2>&1 && echo "OK" || echo "DOWN")
+            FRONTEND_OK=$(curl -sf http://localhost:8501 > /dev/null 2>&1 && echo "OK" || echo "DOWN")
             TUNNEL_OK=$(pgrep -f cloudflared > /dev/null && echo "OK" || echo "DOWN")
 
-            printf "[%s] API: %s | Nginx: %s | Tunnel: %s | Elapsed: %dm | Remaining: %dm\n" \
-              "$(date '+%H:%M:%S')" "$API_OK" "$NGINX_OK" "$TUNNEL_OK" "$((ELAPSED/60))" "$((REMAINING/60))"
+            printf "[%s] API: %s | Frontend: %s | Tunnel: %s | Elapsed: %dm | Remaining: %dm\n" \
+              "$(date '+%H:%M:%S')" "$API_OK" "$FRONTEND_OK" "$TUNNEL_OK" "$((ELAPSED/60))" "$((REMAINING/60))"
 
             # Show recent logs every 5 iterations
             if [ $((LOOP_COUNT % 5)) -eq 0 ]; then
@@ -273,17 +245,19 @@ jobs:
               echo "-------------------------"
             fi
 
-            # Restart services if down
+            # Restart API if down
             if [ "$API_OK" = "DOWN" ]; then
               echo "Restarting API..."
               pkill -f "uvicorn api.main:app" || true
-              uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee -a /tmp/api.log &
+              uvicorn api.main:app --host 127.0.0.1 --port 8000 --root-path /api 2>&1 | tee -a /tmp/api.log &
               sleep 5
             fi
 
-            if [ "$NGINX_OK" = "DOWN" ]; then
-              echo "Restarting Nginx..."
-              sudo systemctl restart nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null || (sudo pkill nginx; sleep 1; sudo nginx)
+            # Restart Frontend if down
+            if [ "$FRONTEND_OK" = "DOWN" ]; then
+              echo "Restarting Frontend..."
+              pkill -f "serve.*8501" || true
+              npx serve -s frontend-react/dist -l 8501 &
               sleep 3
             fi
 
@@ -322,9 +296,6 @@ jobs:
         run: |
           echo "=== API Log ==="
           cat /tmp/api.log 2>/dev/null || echo "No API log"
-          echo ""
-          echo "=== Nginx Error Log ==="
-          sudo cat /var/log/nginx/error.log 2>/dev/null | tail -50 || echo "No nginx log"
           echo ""
           echo "=== Tunnel Log ==="
           cat /tmp/tunnel.log 2>/dev/null || echo "No tunnel log"

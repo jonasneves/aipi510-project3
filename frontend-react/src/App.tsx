@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { DollarSign, Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, TrendingDown, Github, Upload, FileText, X, ToggleLeft, ToggleRight } from 'lucide-react'
+import { DollarSign, Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, TrendingDown, Github, Upload, FileText, X, ToggleLeft, ToggleRight, GitCompare, ArrowRight } from 'lucide-react'
 import { Input } from './components/ui/input'
 import { Select } from './components/ui/select'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './components/ui/card'
 import { Slider } from './components/ui/slider'
 
-// Use relative /api path in production (same origin), fallback to localhost for dev
+// Use /api path in production (Cloudflare routes to API), fallback to localhost for dev
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api')
 
 interface Options {
@@ -68,12 +68,25 @@ export default function App() {
   const [parsing, setParsing] = useState(false)
   const [parseMessage, setParseMessage] = useState<string | null>(null)
 
+  // Comparison mode state
+  const [compareMode, setCompareMode] = useState(false)
+  const [compareLocation, setCompareLocation] = useState('NY')
+  const [compareExperience, setCompareExperience] = useState(3)
+  const [compareSkills, setCompareSkills] = useState<string[]>(['Python', 'Machine Learning'])
+  const [compareResult, setCompareResult] = useState<PredictionResult | null>(null)
+  const [compareLoading, setCompareLoading] = useState(false)
+
   // Create debounced values for auto-predict
   const debouncedJobTitle = useDebounce(jobTitle, 300)
   const debouncedLocation = useDebounce(location, 300)
   const debouncedExperience = useDebounce(experience, 300)
   const debouncedCompany = useDebounce(company, 500)
   const debouncedSkills = useDebounce(selectedSkills, 300)
+
+  // Debounced comparison values
+  const debouncedCompareLocation = useDebounce(compareLocation, 300)
+  const debouncedCompareExperience = useDebounce(compareExperience, 300)
+  const debouncedCompareSkills = useDebounce(compareSkills, 300)
 
   // Fetch options on mount
   useEffect(() => {
@@ -123,12 +136,67 @@ export default function App() {
     }
   }, [debouncedJobTitle, debouncedLocation, debouncedExperience, debouncedCompany, debouncedSkills, inputMode, uploadedFile, predict])
 
+  // Comparison prediction function
+  const predictComparison = useCallback(async () => {
+    if (!jobTitle || !compareLocation || !compareMode) return
+
+    setCompareLoading(true)
+
+    try {
+      const response = await fetch(`${API_URL}/predict`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          job_title: jobTitle,
+          location: compareLocation,
+          experience_years: compareExperience,
+          company: company || null,
+          skills: compareSkills.length > 0 ? compareSkills : null,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setCompareResult(data)
+    } catch (err) {
+      console.error('Comparison prediction error:', err)
+    } finally {
+      setCompareLoading(false)
+    }
+  }, [jobTitle, compareLocation, compareExperience, company, compareSkills, compareMode])
+
+  // Auto-predict comparison on changes
+  useEffect(() => {
+    if (compareMode && (inputMode === 'manual' || uploadedFile)) {
+      predictComparison()
+    }
+  }, [debouncedCompareLocation, debouncedCompareExperience, debouncedCompareSkills, debouncedJobTitle, debouncedCompany, compareMode, inputMode, uploadedFile, predictComparison])
+
   const toggleSkill = (skill: string) => {
     setSelectedSkills(prev =>
       prev.includes(skill)
         ? prev.filter(s => s !== skill)
         : [...prev, skill]
     )
+  }
+
+  const toggleCompareSkill = (skill: string) => {
+    setCompareSkills(prev =>
+      prev.includes(skill)
+        ? prev.filter(s => s !== skill)
+        : [...prev, skill]
+    )
+  }
+
+  // Initialize compare mode with current values
+  const enableCompareMode = () => {
+    setCompareLocation(location === 'CA' ? 'NY' : 'CA')
+    setCompareExperience(experience)
+    setCompareSkills([...selectedSkills])
+    setCompareMode(true)
   }
 
   // File upload handlers
@@ -415,10 +483,28 @@ export default function App() {
             <CardHeader>
               <CardTitle className="text-xl flex items-center gap-2">
                 Prediction Results
-                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {(loading || compareLoading) && <Loader2 className="h-4 w-4 animate-spin" />}
               </CardTitle>
-              <CardDescription>
-                {result ? 'Salary estimate based on your profile' : 'Results update in real-time'}
+              <CardDescription className="flex items-center justify-between">
+                <span>{result ? 'Salary estimate based on your profile' : 'Results update in real-time'}</span>
+                {result && !compareMode && (
+                  <button
+                    onClick={enableCompareMode}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
+                  >
+                    <GitCompare className="h-3 w-3" />
+                    Compare
+                  </button>
+                )}
+                {compareMode && (
+                  <button
+                    onClick={() => { setCompareMode(false); setCompareResult(null) }}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                    Exit Compare
+                  </button>
+                )}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -436,7 +522,7 @@ export default function App() {
                 </div>
               )}
 
-              {result && (
+              {result && !compareMode && (
                 <div className="space-y-6">
                   {/* Main Prediction */}
                   <div className="text-center py-6 rounded-lg bg-primary/5 border">
@@ -494,6 +580,110 @@ export default function App() {
                         <span className="font-medium text-right">{selectedSkills.join(', ')}</span>
                       </div>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* Comparison Mode */}
+              {result && compareMode && (
+                <div className="space-y-6">
+                  {/* Side by Side Comparison */}
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Current */}
+                    <div className="text-center py-4 rounded-lg bg-primary/5 border">
+                      <p className="text-xs text-muted-foreground mb-1">Current ({location})</p>
+                      <p className="text-2xl font-bold text-primary">
+                        {formatSalary(result.predicted_salary)}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{experience} yrs exp</p>
+                    </div>
+                    {/* Comparison */}
+                    <div className="text-center py-4 rounded-lg bg-secondary/50 border">
+                      <p className="text-xs text-muted-foreground mb-1">Compare ({compareLocation})</p>
+                      <p className="text-2xl font-bold">
+                        {compareResult ? formatSalary(compareResult.predicted_salary) : '...'}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">{compareExperience} yrs exp</p>
+                    </div>
+                  </div>
+
+                  {/* Difference */}
+                  {compareResult && (
+                    <div className="text-center py-3 rounded-lg border bg-background">
+                      <div className="flex items-center justify-center gap-2">
+                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                        <span className={`text-lg font-bold ${
+                          compareResult.predicted_salary > result.predicted_salary
+                            ? 'text-green-500'
+                            : compareResult.predicted_salary < result.predicted_salary
+                            ? 'text-red-500'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {compareResult.predicted_salary >= result.predicted_salary ? '+' : ''}
+                          {formatSalary(compareResult.predicted_salary - result.predicted_salary)}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          ({compareResult.predicted_salary >= result.predicted_salary ? '+' : ''}
+                          {((compareResult.predicted_salary - result.predicted_salary) / result.predicted_salary * 100).toFixed(1)}%)
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Comparison Controls */}
+                  <div className="space-y-4 pt-4 border-t">
+                    <p className="text-sm font-medium">Adjust Comparison Scenario</p>
+
+                    {/* Compare Location */}
+                    <div className="space-y-2">
+                      <label className="text-sm flex items-center gap-2">
+                        <MapPin className="h-3 w-3" />
+                        Location
+                      </label>
+                      <Select value={compareLocation} onChange={(e) => setCompareLocation(e.target.value)}>
+                        {options?.locations.map((loc) => (
+                          <option key={loc.code} value={loc.code}>{loc.name} ({loc.code})</option>
+                        )) || <option value="NY">New York (NY)</option>}
+                      </Select>
+                    </div>
+
+                    {/* Compare Experience */}
+                    <div className="space-y-2">
+                      <label className="text-sm flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        Experience
+                      </label>
+                      <Slider
+                        min={0}
+                        max={20}
+                        value={compareExperience}
+                        onChange={(e) => setCompareExperience(Number(e.target.value))}
+                        label={`${compareExperience} years`}
+                      />
+                    </div>
+
+                    {/* Compare Skills */}
+                    <div className="space-y-2">
+                      <label className="text-sm flex items-center gap-2">
+                        <Code className="h-3 w-3" />
+                        Skills
+                      </label>
+                      <div className="flex flex-wrap gap-1">
+                        {(options?.skills || ['Python', 'Machine Learning', 'Deep Learning']).slice(0, 8).map((skill) => (
+                          <button
+                            key={skill}
+                            onClick={() => toggleCompareSkill(skill)}
+                            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                              compareSkills.includes(skill)
+                                ? 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background border-input hover:bg-accent'
+                            }`}
+                          >
+                            {skill}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

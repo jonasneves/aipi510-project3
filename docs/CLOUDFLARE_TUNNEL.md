@@ -42,16 +42,15 @@ Nginx on port 8501 handles both frontend and `/api` proxy.
 ```
 Internet
     |
-Cloudflare Edge
+Cloudflare Edge (path-based routing)
     |
 aisalary.neevs.io ── Tunnel ── GitHub Runner
                                   |
-                               Nginx :8501
-                                  ├── /api/* → API :8000
-                                  └── /* → React static files
+                                  ├── /api/* → FastAPI :8000
+                                  └── /* → npx serve :8501 (React)
 ```
 
-Single domain with nginx routing `/api/*` to the backend.
+Cloudflare routes `/api` to the API and everything else to the static frontend.
 
 ## Usage
 
