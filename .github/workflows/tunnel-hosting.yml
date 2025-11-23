@@ -1,4 +1,7 @@
-name: Tunnel Hosting
+name: Live Server
+
+# Fixed run name - won't change based on commit message
+run-name: "Live Server - aisalary.neevs.io"
 
 on:
   # Auto-restart on push to main
@@ -26,7 +29,7 @@ on:
     types: [restart-tunnel]
 
 concurrency:
-  group: tunnel-hosting
+  group: live-demo
   cancel-in-progress: true  # Cancel old run when new code is pushed
 
 env:
@@ -188,36 +191,33 @@ jobs:
           echo "=== Starting Nginx (Frontend + API Proxy) ==="
           sudo apt-get update -qq && sudo apt-get install -y -qq nginx
 
-          # Write nginx config
-          sudo tee /etc/nginx/sites-available/aisalary > /dev/null <<'NGINX'
-          server {
-              listen 8501;
-              server_name _;
+          # Write nginx config (no indentation in heredoc!)
+          FRONTEND_ROOT="$(pwd)/frontend-react/dist"
+          sudo tee /etc/nginx/sites-available/aisalary > /dev/null <<EOF
+server {
+    listen 8501;
+    server_name _;
+    root ${FRONTEND_ROOT};
+    index index.html;
 
-              # Serve frontend static files
-              root $PWD/frontend-react/dist;
-              index index.html;
+    # Proxy /api requests to backend
+    location /api/ {
+        proxy_pass http://127.0.0.1:8000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        client_max_body_size 10M;
+    }
 
-              # Proxy /api requests to backend
-              location /api/ {
-                  proxy_pass http://127.0.0.1:8000/;
-                  proxy_http_version 1.1;
-                  proxy_set_header Host $host;
-                  proxy_set_header X-Real-IP $remote_addr;
-                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-                  proxy_set_header X-Forwarded-Proto $scheme;
-                  client_max_body_size 10M;
-              }
+    # SPA routing - serve index.html for all non-file routes
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+EOF
 
-              # SPA routing - serve index.html for all non-file routes
-              location / {
-                  try_files $uri $uri/ /index.html;
-              }
-          }
-          NGINX
-
-          # Update nginx config with actual path
-          sudo sed -i "s|\$PWD|$(pwd)|g" /etc/nginx/sites-available/aisalary
           sudo rm -f /etc/nginx/sites-enabled/default
           sudo ln -sf /etc/nginx/sites-available/aisalary /etc/nginx/sites-enabled/
           sudo nginx -t && sudo nginx
