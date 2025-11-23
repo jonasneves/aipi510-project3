@@ -167,11 +167,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount router at /api prefix (for Cloudflare path-based routing)
-# Also mount at root in case Cloudflare strips the /api prefix
-app.include_router(router, prefix="/api")
-app.include_router(router, prefix="")
-
 
 # Root-level health check for internal monitoring (workflow checks localhost:8000/health)
 @app.get("/health")
@@ -513,6 +508,12 @@ async def predict_batch(request: BatchSalaryRequest):
     except Exception as e:
         logger.error(f"Batch prediction error: {e}")
         raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
+
+
+# Mount router AFTER all routes are defined
+# (include_router copies routes at call time, so routes must exist first)
+app.include_router(router, prefix="/api")
+app.include_router(router, prefix="")
 
 
 if __name__ == "__main__":
