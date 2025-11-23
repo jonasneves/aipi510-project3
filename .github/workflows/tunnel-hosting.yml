@@ -282,42 +282,81 @@ jobs:
                 echo "Triggering restart workflow..."
                 echo "=========================================="
 
-                # IMPORTANT: GITHUB_TOKEN cannot trigger workflows (security limitation)
-                # Must use a Personal Access Token with 'repo' scope stored as WORKFLOW_PAT
-                RESPONSE=$(curl -sX POST \
-                  -H "Accept: application/vnd.github+json" \
-                  -H "Authorization: Bearer ${{ secrets.WORKFLOW_PAT }}" \
-                  -H "X-GitHub-Api-Version: 2022-11-28" \
-                  https://api.github.com/repos/${{ github.repository }}/dispatches \
-                  -d '{"event_type":"restart-tunnel"}' \
-                  -w "\n%{http_code}" 2>&1)
-
-                HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-                if [ "$HTTP_CODE" = "204" ]; then
-                  echo "✓ Restart triggered successfully!"
-                  echo "New runner will start shortly..."
+                # Check if WORKFLOW_PAT is set
+                PAT_TOKEN="${{ secrets.WORKFLOW_PAT }}"
+                if [ -z "$PAT_TOKEN" ]; then
+                  echo "ERROR: WORKFLOW_PAT secret is not set!"
                   echo ""
-                  echo "Waiting 3 minutes to allow new runner to initialize..."
-                  echo "This ensures graceful handoff with minimal downtime."
-
-                  # Wait for new runner to start building
-                  # This gives ~3 min for new runner to: checkout, install deps, start services
-                  for i in {1..18}; do
-                    printf "  Handoff wait: %d/180 seconds...\r" "$((i * 10))"
-                    sleep 10
-                  done
+                  echo "To fix this:"
+                  echo "1. Go to GitHub Settings > Developer settings > Personal access tokens"
+                  echo "2. Create a new token (classic) with 'repo' scope"
+                  echo "3. Go to your repository Settings > Secrets and variables > Actions"
+                  echo "4. Add a new secret named WORKFLOW_PAT with the token value"
                   echo ""
-                  echo "Handoff wait complete. New runner should be ready."
+                  echo "Runner will exit without auto-restart."
+                  RESTART_TRIGGERED=true
                 else
-                  echo "✗ Failed to trigger restart (HTTP $HTTP_CODE)"
-                  echo "Response: $RESPONSE"
-                  echo ""
-                  echo "To fix: Create a Personal Access Token with 'repo' scope"
-                  echo "and add it as repository secret named WORKFLOW_PAT"
-                fi
+                  # IMPORTANT: GITHUB_TOKEN cannot trigger workflows (security limitation)
+                  # Must use a Personal Access Token with 'repo' scope stored as WORKFLOW_PAT
+                  echo "Sending repository_dispatch event..."
+                  RESPONSE=$(curl -sX POST \
+                    -H "Accept: application/vnd.github+json" \
+                    -H "Authorization: Bearer $PAT_TOKEN" \
+                    -H "X-GitHub-Api-Version: 2022-11-28" \
+                    https://api.github.com/repos/${{ github.repository }}/dispatches \
+                    -d '{"event_type":"restart-tunnel"}' \
+                    -w "\nHTTP_STATUS:%{http_code}" 2>&1)
 
-                RESTART_TRIGGERED=true
+                  HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
+                  BODY=$(echo "$RESPONSE" | grep -v "HTTP_STATUS:")
+
+                  echo "HTTP Status: $HTTP_CODE"
+                  if [ -n "$BODY" ]; then
+                    echo "Response body: $BODY"
+                  fi
+
+                  if [ "$HTTP_CODE" = "204" ]; then
+                    echo ""
+                    echo "SUCCESS: Restart triggered!"
+                    echo "New runner will start shortly..."
+                    echo ""
+                    echo "Waiting 3 minutes to allow new runner to initialize..."
+                    echo "This ensures graceful handoff with minimal downtime."
+
+                    # Wait for new runner to start building
+                    # This gives ~3 min for new runner to: checkout, install deps, start services
+                    for i in {1..18}; do
+                      printf "  Handoff wait: %d/180 seconds...\r" "$((i * 10))"
+                      sleep 10
+                    done
+                    echo ""
+                    echo "Handoff wait complete. New runner should be ready."
+                  elif [ "$HTTP_CODE" = "401" ]; then
+                    echo ""
+                    echo "ERROR: Authentication failed (401)"
+                    echo "Your WORKFLOW_PAT token may be expired or invalid."
+                    echo ""
+                    echo "To fix: Generate a new Personal Access Token with 'repo' scope"
+                  elif [ "$HTTP_CODE" = "404" ]; then
+                    echo ""
+                    echo "ERROR: Repository not found (404)"
+                    echo "Your WORKFLOW_PAT may not have access to this repository."
+                    echo ""
+                    echo "To fix: Ensure the PAT has 'repo' scope and access to this repository"
+                  elif [ "$HTTP_CODE" = "422" ]; then
+                    echo ""
+                    echo "ERROR: Invalid request (422)"
+                    echo "The event_type 'restart-tunnel' may not be configured correctly."
+                  else
+                    echo ""
+                    echo "ERROR: Failed to trigger restart (HTTP $HTTP_CODE)"
+                    echo ""
+                    echo "To fix: Create a Personal Access Token with 'repo' scope"
+                    echo "and add it as repository secret named WORKFLOW_PAT"
+                  fi
+
+                  RESTART_TRIGGERED=true
+                fi
               fi
             fi
 
