@@ -92,7 +92,15 @@ jobs:
           echo "Tunnel connected"
 
       - name: Keep services running
+        continue-on-error: true  # Don't fail on cancel
         run: |
+          # Handle cancellation gracefully
+          cleanup() {
+            echo "Received shutdown signal, exiting gracefully..."
+            exit 0
+          }
+          trap cleanup SIGTERM SIGINT
+
           HOURS="${{ github.event.inputs.duration_hours || '5.5' }}"
           DURATION=$(echo "$HOURS * 3600" | bc | cut -d. -f1)
           START_TIME=$(date +%s)

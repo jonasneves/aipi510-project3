@@ -155,6 +155,35 @@ async def health():
     }
 
 
+@app.get("/badge/api")
+async def badge_api():
+    """Shields.io badge endpoint for API status."""
+    if predictor is not None:
+        return {
+            "schemaVersion": 1,
+            "label": "API",
+            "message": "online",
+            "color": "brightgreen",
+        }
+    return {
+        "schemaVersion": 1,
+        "label": "API",
+        "message": "degraded",
+        "color": "yellow",
+    }
+
+
+@app.get("/badge/app")
+async def badge_app():
+    """Shields.io badge endpoint for App status (proxied via API)."""
+    return {
+        "schemaVersion": 1,
+        "label": "App",
+        "message": "online",
+        "color": "brightgreen",
+    }
+
+
 @app.get("/model/info")
 async def model_info():
     """Get model information."""

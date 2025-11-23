@@ -1,7 +1,8 @@
 # AI Salary Prediction Pipeline
 
 [![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
-[![Tunnel Hosting](https://github.com/jonasneves/aipi510-project3/actions/workflows/tunnel-hosting.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/tunnel-hosting.yml)
+[![API Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/api&label=API)](https://api-salary.neevs.io)
+[![App Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/app&label=App)](https://app-salary.neevs.io)
 
 Predict AI/ML salaries using XGBoost, FastAPI, Streamlit, and MLFlow.
 
