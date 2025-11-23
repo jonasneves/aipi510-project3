@@ -214,9 +214,14 @@ jobs:
 
           sudo rm -f /etc/nginx/sites-enabled/default
           sudo ln -sf /etc/nginx/sites-available/aisalary /etc/nginx/sites-enabled/
-          sudo nginx -t && sudo nginx
-          echo "Nginx started on port 8501"
-          sleep 3
+
+          # Test and restart nginx (it may already be running from apt install)
+          sudo nginx -t
+          sudo systemctl restart nginx || sudo nginx -s reload || (sudo nginx -s stop; sudo nginx)
+
+          # Verify nginx is serving
+          sleep 2
+          curl -sf http://localhost:8501 && echo "Nginx is serving on port 8501" || echo "Warning: Nginx health check failed"
 
           # Start Cloudflare Tunnel with logging
           echo ""
@@ -278,8 +283,7 @@ jobs:
 
             if [ "$NGINX_OK" = "DOWN" ]; then
               echo "Restarting Nginx..."
-              sudo nginx -s stop 2>/dev/null || true
-              sudo nginx
+              sudo systemctl restart nginx 2>/dev/null || sudo nginx -s reload 2>/dev/null || (sudo pkill nginx; sleep 1; sudo nginx)
               sleep 3
             fi
 
