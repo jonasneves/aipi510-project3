@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import APIRouter, FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -22,6 +22,9 @@ from src.processing import FeatureEngineer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Create router for API endpoints (will be mounted at /api)
+router = APIRouter()
 
 # Resume parsing utilities
 JOB_TITLE_PATTERNS = [
@@ -161,6 +164,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount router at /api prefix (for Cloudflare path-based routing)
+app.include_router(router, prefix="/api")
+
+
+# Root-level health check for internal monitoring (workflow checks localhost:8000/health)
+@app.get("/health")
+async def root_health():
+    """Health check at root level for internal monitoring."""
+    return {"status": "healthy", "model_loaded": predictor is not None}
+
+
 # Global variables
 predictor: Optional[SalaryPredictor] = None
 engineer: Optional[FeatureEngineer] = None
@@ -266,22 +280,22 @@ async def startup_event():
         logger.error(f"Failed to load model: {e}")
 
 
-@app.get("/")
+@router.get("/")
 async def root():
     """Root endpoint."""
     return {
         "message": "AI Salary Prediction API",
         "version": "1.0.0",
         "endpoints": {
-            "/predict": "POST - Predict salary for a single job",
-            "/predict/batch": "POST - Predict salaries for multiple jobs",
-            "/health": "GET - Health check",
-            "/model/info": "GET - Model information",
+            "/api/predict": "POST - Predict salary for a single job",
+            "/api/predict/batch": "POST - Predict salaries for multiple jobs",
+            "/api/health": "GET - Health check",
+            "/api/model/info": "GET - Model information",
         },
     }
 
 
-@app.get("/health")
+@router.get("/health")
 async def health():
     """Health check endpoint."""
     return {
@@ -290,7 +304,7 @@ async def health():
     }
 
 
-@app.get("/badge/api")
+@router.get("/badge/api")
 async def badge_api():
     """Shields.io badge endpoint for API status."""
     if predictor is not None:
@@ -308,7 +322,7 @@ async def badge_api():
     }
 
 
-@app.get("/badge/app")
+@router.get("/badge/app")
 async def badge_app():
     """Shields.io badge endpoint for App status (proxied via API)."""
     return {
@@ -319,7 +333,7 @@ async def badge_app():
     }
 
 
-@app.get("/model/info")
+@router.get("/model/info")
 async def model_info():
     """Get model information."""
     if predictor is None:
@@ -332,7 +346,7 @@ async def model_info():
     }
 
 
-@app.get("/options")
+@router.get("/options")
 async def get_options():
     """Get available options for prediction inputs."""
     return {
@@ -409,7 +423,7 @@ class ResumeParseResponse(BaseModel):
     message: str = "Resume parsed successfully"
 
 
-@app.post("/parse-resume", response_model=ResumeParseResponse)
+@router.post("/parse-resume", response_model=ResumeParseResponse)
 async def parse_resume_endpoint(file: UploadFile = File(...)):
     """Parse a resume file (PDF or DOCX) to extract job information."""
     if not file.filename:
@@ -455,7 +469,7 @@ async def parse_resume_endpoint(file: UploadFile = File(...)):
         )
 
 
-@app.post("/predict", response_model=SalaryResponse)
+@router.post("/predict", response_model=SalaryResponse)
 async def predict(job: SalaryInput):
     """Predict salary for a single job."""
     if predictor is None:
@@ -477,7 +491,7 @@ async def predict(job: SalaryInput):
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
-@app.post("/predict/batch")
+@router.post("/predict/batch")
 async def predict_batch(request: BatchSalaryRequest):
     """Predict salaries for multiple jobs."""
     if predictor is None:

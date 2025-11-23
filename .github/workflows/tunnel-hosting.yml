@@ -169,7 +169,7 @@ jobs:
 
           # Start API on port 8000 (Cloudflare routes /api here)
           echo "=== Starting API ==="
-          uvicorn api.main:app --host 127.0.0.1 --port 8000 --root-path /api 2>&1 | tee /tmp/api.log &
+          uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee /tmp/api.log &
           API_PID=$!
           echo "API PID: $API_PID"
 
@@ -249,7 +249,7 @@ jobs:
             if [ "$API_OK" = "DOWN" ]; then
               echo "Restarting API..."
               pkill -f "uvicorn api.main:app" || true
-              uvicorn api.main:app --host 127.0.0.1 --port 8000 --root-path /api 2>&1 | tee -a /tmp/api.log &
+              uvicorn api.main:app --host 127.0.0.1 --port 8000 2>&1 | tee -a /tmp/api.log &
               sleep 5
             fi
 
