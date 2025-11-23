@@ -81,14 +81,6 @@ jobs:
           path: /usr/local/bin/cloudflared
           key: cloudflared-linux-amd64-v1
 
-      # Cache model from S3
-      - name: Cache model
-        uses: actions/cache@v4
-        id: model-cache
-        with:
-          path: models
-          key: model-latest-v1
-
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
@@ -104,12 +96,35 @@ jobs:
           cd frontend-react
           VITE_API_URL=https://api-salary.neevs.io npm run build
 
+      # Configure AWS to check model timestamp
       - name: Configure AWS credentials
-        if: steps.model-cache.outputs.cache-hit != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
+
+      # Get model timestamp for cache invalidation
+      - name: Get model timestamp
+        id: model-timestamp
+        run: |
+          TIMESTAMP=$(aws s3api head-object \
+            --bucket ${{ env.S3_BUCKET }} \
+            --key models/latest/salary_model_latest.pkl \
+            --query 'LastModified' --output text 2>/dev/null || echo "unknown")
+          # Convert to date-only for cache key stability
+          DATE=$(echo "$TIMESTAMP" | cut -d'T' -f1 || echo "unknown")
+          echo "timestamp=$DATE" >> $GITHUB_OUTPUT
+          echo "Model last modified: $TIMESTAMP (using $DATE for cache key)"
+
+      # Cache model with timestamp-based key
+      - name: Cache model
+        uses: actions/cache@v4
+        id: model-cache
+        with:
+          path: models
+          key: model-${{ steps.model-timestamp.outputs.timestamp }}
+          restore-keys: |
+            model-
 
       - name: Download model from S3
         if: steps.model-cache.outputs.cache-hit != 'true'

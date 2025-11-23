@@ -40,11 +40,11 @@ services:
     build:
       context: .
       target: frontend
+      args:
+        - VITE_API_URL=http://localhost:8000
     container_name: salary-frontend
     ports:
       - "8501:8501"
-    environment:
-      - PYTHONUNBUFFERED=1
     networks:
       - salary-network
     depends_on:

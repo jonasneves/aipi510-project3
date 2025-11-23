@@ -42,14 +42,38 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
 
-# Frontend stage
-FROM base as frontend
+# Frontend build stage
+FROM node:20-alpine as frontend-build
 
-COPY frontend/ ./frontend/
+WORKDIR /app
+
+COPY frontend-react/package*.json ./
+RUN npm install
+
+COPY frontend-react/ ./
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=$VITE_API_URL
+RUN npm run build
+
+# Frontend serve stage
+FROM nginx:alpine as frontend
+
+COPY --from=frontend-build /app/dist /usr/share/nginx/html
+COPY <<EOF /etc/nginx/conf.d/default.conf
+server {
+    listen 8501;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    location / {
+        try_files \$uri \$uri/ /index.html;
+    }
+}
+EOF
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.address=0.0.0.0"]
+CMD ["nginx", "-g", "daemon off;"]
 
 
 # Complete stage for development
