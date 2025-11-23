@@ -245,7 +245,23 @@ def prepare_features(input_data: SalaryInput) -> pd.DataFrame:
     )
 
     data = engineer.engineer_features(data)
-    data = engineer.encode_categoricals(data, fit=True)
+
+    # Don't use fit=True for categoricals - it creates new encoders each time
+    # Instead, manually create state encoding based on known states
+    state = input_data.location.upper()
+
+    # State index mapping (consistent across predictions)
+    STATE_INDEX = {
+        "CA": 0, "NY": 1, "WA": 2, "TX": 3, "MA": 4, "CO": 5, "IL": 6,
+        "GA": 7, "NC": 8, "FL": 9, "PA": 10, "VA": 11, "AZ": 12, "OR": 13,
+        "MD": 14, "NJ": 15, "OH": 16, "MI": 17, "MN": 18, "UT": 19,
+    }
+    data["state_clean_encoded"] = STATE_INDEX.get(state, 20)
+
+    # Company tier encoding
+    TIER_INDEX = {"faang": 0, "tier1": 1, "tier2": 2, "finance": 3, "startup": 4, "other": 5, "unknown": 6}
+    company_tier = data["company_tier"].iloc[0] if "company_tier" in data.columns else "unknown"
+    data["company_tier_encoded"] = TIER_INDEX.get(company_tier, 6)
 
     if "estimated_yoe" in data.columns:
         data["estimated_yoe"] = input_data.experience_years
@@ -342,6 +358,7 @@ async def model_info():
     return {
         "model_type": "XGBoost Regressor",
         "n_features": len(predictor.feature_names),
+        "feature_names": predictor.feature_names[:50],  # First 50 features for debugging
         "training_metrics": predictor.training_metrics.get("train", {}),
     }
 
