@@ -2,7 +2,7 @@
 
 Predict AI/ML salaries using XGBoost, FastAPI, Streamlit, and MLFlow.
 
-**Live Demo:** [Frontend](https://your-app.streamlit.app) | [API](https://your-api.run.app)
+**Live Demo:** [Frontend](https://app-salary.neevs.io) | [API](https://api-salary.neevs.io)
 
 ## Pipeline
 

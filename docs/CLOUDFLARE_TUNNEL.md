@@ -1,88 +1,107 @@
-# Cloudflare Tunnel Setup for GitHub Actions Hosting
+# Cloudflare Tunnel Hosting
 
-Host the API and frontend on GitHub Actions with Cloudflare tunnels for public access.
+Host the API and frontend on GitHub Actions with Cloudflare tunnels.
 
 ## Prerequisites
 
-1. Cloudflare account (free tier works)
-2. Domain added to Cloudflare (or use `*.trycloudflare.com` for testing)
+1. Cloudflare account with domain
+2. AWS S3 with trained model (run ML pipeline first)
+3. GitHub secrets configured
 
-## Setup Steps
+## Setup
 
 ### 1. Create Cloudflare Tunnel
 
 ```bash
-# Install cloudflared locally
+# Install cloudflared
 brew install cloudflare/cloudflare/cloudflared  # macOS
-# or download from https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
 
-# Login to Cloudflare
+# Login and create tunnel
 cloudflared tunnel login
-
-# Create tunnel
 cloudflared tunnel create salary-predictor
 
-# Note the tunnel ID and credentials file path
+# Note the tunnel ID
 ```
 
-### 2. Configure DNS (if using custom domain)
+### 2. Configure Tunnel Routes
+
+In Cloudflare Zero Trust dashboard (or via CLI):
 
 ```bash
-# Create DNS records pointing to tunnel
-cloudflared tunnel route dns salary-predictor api.yourdomain.com
-cloudflared tunnel route dns salary-predictor app.yourdomain.com
+# Route API
+cloudflared tunnel route dns salary-predictor api-salary.neevs.io
+
+# Route Frontend
+cloudflared tunnel route dns salary-predictor app-salary.neevs.io
 ```
 
-### 3. Add GitHub Secrets
+### 3. Create Tunnel Config
 
-Add these secrets to your repository (Settings > Secrets > Actions):
+Create `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: api-salary.neevs.io
+    service: http://localhost:8000
+  - hostname: app-salary.neevs.io
+    service: http://localhost:8501
+  - service: http_status:404
+```
+
+### 4. Get Tunnel Token
+
+```bash
+cloudflared tunnel token <TUNNEL_ID>
+```
+
+### 5. Add GitHub Secrets
 
 | Secret | Description |
 |--------|-------------|
-| `CLOUDFLARE_TUNNEL_TOKEN` | Tunnel token from `cloudflared tunnel token <tunnel-id>` |
-| `CLOUDFLARE_TUNNEL_ID` | Your tunnel ID |
-
-### 4. Quick Start (No Custom Domain)
-
-For testing without a domain, the workflow uses `trycloudflare.com` quick tunnels.
-No secrets needed - just run the workflow.
+| `CLOUDFLARE_TUNNEL_TOKEN` | From step 4 |
+| `AWS_ROLE_ARN` | IAM role for S3 access |
 
 ## Architecture
 
 ```
 Internet
     |
-    v
-Cloudflare Edge (DDoS protection, caching)
+Cloudflare Edge
     |
-    v
-Cloudflared Tunnel (outbound-only, no open ports)
-    |
-    v
-GitHub Actions Runner
-    |-- API (port 8000)
-    |-- Frontend (port 8501)
+    ├── api-salary.neevs.io ──┐
+    └── app-salary.neevs.io ──┼── Tunnel ── GitHub Runner
+                              │              ├── API :8000
+                              │              └── Frontend :8501
 ```
 
-## Handling 6-Hour Timeout
+The frontend uses `http://localhost:8000` for API calls since both run on the same runner.
 
-GitHub Actions has a 6-hour job limit. The workflow handles this by:
+## Usage
 
-1. Running services for ~5.5 hours
-2. Triggering a new workflow run before timeout
-3. Waiting for new runner to establish tunnel
-4. Gracefully shutting down old runner
+```bash
+# Start hosting (via GitHub Actions UI or CLI)
+gh workflow run tunnel-hosting.yml
 
-This provides near-zero-downtime continuous hosting.
+# With custom duration
+gh workflow run tunnel-hosting.yml -f duration_hours=2
 
-## Cost
+# Disable auto-restart
+gh workflow run tunnel-hosting.yml -f auto_restart=false
+```
 
-- GitHub Actions: 2000 free minutes/month (public repos unlimited)
-- Cloudflare Tunnel: Free tier included
-- Total: $0 for hobby/demo projects
+## 6-Hour Timeout Handling
+
+GitHub Actions has a 6-hour job limit. The workflow:
+
+1. Runs for 5.5 hours by default
+2. Triggers a new workflow 5 min before timeout
+3. New runner takes over with fresh tunnel connection
 
 ## Limitations
 
 - Not for production workloads
-- Cold start when no runner is active (~1-2 min)
-- Dependent on GitHub Actions availability
+- ~1-2 min cold start when no runner active
+- Requires model in S3 (won't train)
