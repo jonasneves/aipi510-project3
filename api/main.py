@@ -168,7 +168,9 @@ app.add_middleware(
 )
 
 # Mount router at /api prefix (for Cloudflare path-based routing)
+# Also mount at root in case Cloudflare strips the /api prefix
 app.include_router(router, prefix="/api")
+app.include_router(router, prefix="")
 
 
 # Root-level health check for internal monitoring (workflow checks localhost:8000/health)
