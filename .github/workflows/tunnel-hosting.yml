@@ -1,6 +1,15 @@
 name: Tunnel Hosting
 
 on:
+  # Auto-restart on push to main
+  push:
+    branches: [main]
+    paths:
+      - 'api/**'
+      - 'frontend-react/**'
+      - 'src/**'
+      - 'requirements.txt'
+  # Manual trigger
   workflow_dispatch:
     inputs:
       duration_hours:
@@ -12,12 +21,13 @@ on:
         required: false
         default: 'true'
         type: boolean
+  # Programmatic restart (for timeout rotation)
   repository_dispatch:
     types: [restart-tunnel]
 
 concurrency:
   group: tunnel-hosting
-  cancel-in-progress: false
+  cancel-in-progress: true  # Cancel old run when new code is pushed
 
 env:
   AWS_REGION: us-east-1
