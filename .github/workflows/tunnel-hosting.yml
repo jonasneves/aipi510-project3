@@ -337,6 +337,16 @@ jobs:
                     echo "Your WORKFLOW_PAT token may be expired or invalid."
                     echo ""
                     echo "To fix: Generate a new Personal Access Token with 'repo' scope"
+                  elif [ "$HTTP_CODE" = "403" ]; then
+                    echo ""
+                    echo "ERROR: Permission denied (403)"
+                    echo "Your WORKFLOW_PAT lacks required permissions."
+                    echo ""
+                    echo "To fix:"
+                    echo "- For Classic PAT: Enable 'repo' scope (full control)"
+                    echo "- For Fine-grained PAT: Enable 'Contents: Read and write'"
+                    echo ""
+                    echo "Recommended: Use a Classic PAT with 'repo' scope"
                   elif [ "$HTTP_CODE" = "404" ]; then
                     echo ""
                     echo "ERROR: Repository not found (404)"
