@@ -1,10 +1,11 @@
 # AI Salary Prediction Pipeline
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
 [![API Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/api&label=API)](https://api-salary.neevs.io)
 [![App Status](https://img.shields.io/endpoint?url=https://api-salary.neevs.io/badge/app&label=App)](https://app-salary.neevs.io)
 
-Predict AI/ML salaries using XGBoost, FastAPI, Streamlit, and MLFlow.
+Predict AI/ML salaries using XGBoost, FastAPI, React, and MLFlow.
 
 **Live Demo:** [Frontend](https://app-salary.neevs.io) | [API](https://api-salary.neevs.io)
 
@@ -18,16 +19,17 @@ graph LR
     D --> E[Train XGBoost]
     E --> F[MLFlow]
     E --> G[FastAPI]
-    G --> H[Streamlit UI]
+    G --> H[React UI]
 ```
 
 ## Quick Start
 
 ```bash
-make install    # Install dependencies
-make pipeline   # Collect data, merge, train
-make api        # Start API (port 8000)
-make frontend   # Start UI (port 8501)
+make install           # Install Python dependencies
+make frontend-install  # Install frontend dependencies
+make pipeline          # Collect data, merge, train
+make api               # Start API (port 8000)
+make frontend          # Start React dev server (port 5173)
 ```
 
 ## Features
@@ -36,7 +38,7 @@ make frontend   # Start UI (port 8501)
 - Data from H1B filings, BLS statistics, job postings
 - MLFlow experiment tracking
 - REST API with FastAPI
-- Interactive UI with Streamlit
+- Modern React UI with Tailwind CSS
 - Docker support
 - CI/CD with GitHub Actions + S3 caching
 
@@ -45,7 +47,7 @@ make frontend   # Start UI (port 8501)
 ```
 src/                  # ML pipeline (collectors, processing, models)
 api/                  # FastAPI endpoints
-frontend/             # Streamlit UI
+frontend-react/       # React + Vite + Tailwind frontend
 config.yaml           # Pipeline configuration
 Makefile              # Convenience commands
 Dockerfile            # Multi-stage builds

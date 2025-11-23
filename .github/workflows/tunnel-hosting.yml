@@ -42,10 +42,23 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: Install dependencies
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
-          pip install uvicorn streamlit
+          pip install uvicorn
+
+      - name: Install and build frontend
+        run: |
+          cd frontend-react
+          npm install
+          VITE_API_URL=https://api-salary.neevs.io npm run build
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -83,7 +96,7 @@ jobs:
             echo "=== Shutting down ==="
             pkill -f cloudflared || true
             pkill -f uvicorn || true
-            pkill -f streamlit || true
+            pkill -f "python -m http.server" || true
             exit 0
           }
           trap cleanup SIGTERM SIGINT
@@ -107,13 +120,14 @@ jobs:
           # Check API health
           curl -s http://localhost:8000/health || { echo "API failed to start"; cat /tmp/api.log; exit 1; }
 
-          # Start Frontend with logging
+          # Start Frontend (serve built React app)
           echo ""
           echo "=== Starting Frontend ==="
-          streamlit run frontend/app.py --server.port 8501 --server.headless true 2>&1 | tee /tmp/frontend.log &
+          cd frontend-react/dist && python -m http.server 8501 2>&1 | tee /tmp/frontend.log &
+          cd ../..
           FRONTEND_PID=$!
           echo "Frontend PID: $FRONTEND_PID"
-          sleep 10
+          sleep 5
 
           # Start Cloudflare Tunnel with logging
           echo ""
@@ -175,8 +189,9 @@ jobs:
 
             if [ "$FRONTEND_OK" = "DOWN" ]; then
               echo "Restarting Frontend..."
-              pkill -f "streamlit run" || true
-              streamlit run frontend/app.py --server.port 8501 --server.headless true 2>&1 | tee -a /tmp/frontend.log &
+              pkill -f "python -m http.server" || true
+              cd frontend-react/dist && python -m http.server 8501 2>&1 | tee -a /tmp/frontend.log &
+              cd ../..
               sleep 5
             fi
 

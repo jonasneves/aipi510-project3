@@ -1,6 +1,6 @@
 # Makefile for AI Salary Prediction Pipeline
 
-.PHONY: help install collect merge train predict pipeline api mlflow frontend test docker-build docker-up docker-down format lint clean setup
+.PHONY: help install collect merge train predict pipeline api mlflow frontend frontend-dev frontend-build test docker-build docker-up docker-down format lint clean setup
 
 help:
 	@echo "AI Salary Prediction Pipeline - Available Commands:"
@@ -13,7 +13,8 @@ help:
 	@echo "  make pipeline     - Run complete pipeline (collect + merge + train)"
 	@echo "  make mlflow       - Start MLFlow UI (port 5000)"
 	@echo "  make api          - Start FastAPI server (port 8000)"
-	@echo "  make frontend     - Start Streamlit frontend (port 8501)"
+	@echo "  make frontend     - Start React frontend dev server (port 5173)"
+	@echo "  make frontend-build - Build React frontend for production"
 	@echo ""
 	@echo "Docker Commands:"
 	@echo "  make docker-build - Build Docker image"
@@ -51,7 +52,13 @@ mlflow:
 	mlflow ui --host 0.0.0.0 --port 5000
 
 frontend:
-	streamlit run frontend/app.py --server.port 8501
+	cd frontend-react && npm run dev
+
+frontend-build:
+	cd frontend-react && npm run build
+
+frontend-install:
+	cd frontend-react && npm install
 
 test:
 	pytest tests/ -v
