@@ -16,19 +16,6 @@ Predict AI/ML salaries using XGBoost, FastAPI, React, and MLFlow.
 - **Smart Parsing** - Extracts job title, skills, experience, and location from resumes
 - **Confidence Intervals** - Shows 90% CI salary range, not just point estimate
 
-## Pipeline
-
-```mermaid
-graph LR
-    A[H1B Data] --> D[Merge]
-    B[BLS Stats] --> D
-    C[Job Postings] --> D
-    D --> E[Train XGBoost]
-    E --> F[MLFlow]
-    E --> G[FastAPI]
-    G --> H[React UI]
-```
-
 ## Architecture
 
 ![Architecture Diagram](architecture.png)
