@@ -57,37 +57,77 @@ jobs:
         with:
           node-version: '20'
 
+      # Cache node_modules
+      - name: Cache node modules
+        uses: actions/cache@v4
+        id: npm-cache
+        with:
+          path: frontend-react/node_modules
+          key: npm-${{ hashFiles('frontend-react/package.json') }}
+
+      # Cache frontend build
+      - name: Cache frontend build
+        uses: actions/cache@v4
+        id: build-cache
+        with:
+          path: frontend-react/dist
+          key: frontend-build-${{ hashFiles('frontend-react/**/*.ts', 'frontend-react/**/*.tsx', 'frontend-react/**/*.css', 'frontend-react/package.json') }}
+
+      # Cache cloudflared binary
+      - name: Cache cloudflared
+        uses: actions/cache@v4
+        id: cloudflared-cache
+        with:
+          path: /usr/local/bin/cloudflared
+          key: cloudflared-linux-amd64-v1
+
+      # Cache model from S3
+      - name: Cache model
+        uses: actions/cache@v4
+        id: model-cache
+        with:
+          path: models
+          key: model-latest-v1
+
       - name: Install Python dependencies
         run: |
           pip install -r requirements.txt
           pip install uvicorn
 
-      - name: Install and build frontend
+      - name: Install node modules
+        if: steps.npm-cache.outputs.cache-hit != 'true'
+        run: cd frontend-react && npm install
+
+      - name: Build frontend
+        if: steps.build-cache.outputs.cache-hit != 'true'
         run: |
           cd frontend-react
-          npm install
           VITE_API_URL=https://api-salary.neevs.io npm run build
 
       - name: Configure AWS credentials
+        if: steps.model-cache.outputs.cache-hit != 'true'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download model from S3
+        if: steps.model-cache.outputs.cache-hit != 'true'
         run: |
           mkdir -p models
           aws s3 cp s3://${{ env.S3_BUCKET }}/models/latest/ models/ --recursive
 
+      - name: Verify model
+        run: |
           if [ ! -f models/salary_model_latest.pkl ]; then
-            echo "ERROR: Model not found in S3"
+            echo "ERROR: Model not found"
             exit 1
           fi
-
           echo "Model files:"
           ls -la models/
 
       - name: Install cloudflared
+        if: steps.cloudflared-cache.outputs.cache-hit != 'true'
         run: |
           curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
           chmod +x cloudflared
