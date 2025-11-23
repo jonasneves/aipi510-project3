@@ -56,9 +56,9 @@ jobs:
       - name: Download model from S3
         run: |
           mkdir -p models
-          aws s3 cp s3://${{ env.S3_BUCKET }}/models/ models/ --recursive
+          aws s3 cp s3://${{ env.S3_BUCKET }}/models/latest/ models/ --recursive
 
-          if [ ! -f models/salary_model.joblib ]; then
+          if [ ! -f models/salary_model_latest.pkl ]; then
             echo "ERROR: Model not found in S3. Run the ML pipeline first."
             exit 1
           fi
