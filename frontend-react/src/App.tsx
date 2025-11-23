@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DollarSign, Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, TrendingDown, Github } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Input } from './components/ui/input'
@@ -8,10 +8,11 @@ import { Slider } from './components/ui/slider'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-const STATES = [
-  'CA', 'NY', 'WA', 'TX', 'MA', 'CO', 'IL', 'GA', 'NC', 'FL',
-  'PA', 'VA', 'AZ', 'OR', 'MD', 'NJ', 'OH', 'MI', 'MN', 'UT'
-]
+interface Options {
+  job_titles: string[]
+  locations: { code: string; name: string }[]
+  skills: string[]
+}
 
 interface PredictionResult {
   predicted_salary: number
@@ -29,14 +30,23 @@ function formatSalary(amount: number): string {
 }
 
 export default function App() {
+  const [options, setOptions] = useState<Options | null>(null)
   const [jobTitle, setJobTitle] = useState('ML Engineer')
   const [location, setLocation] = useState('CA')
   const [experience, setExperience] = useState(3)
   const [company, setCompany] = useState('')
-  const [skills, setSkills] = useState('python, machine learning')
+  const [selectedSkills, setSelectedSkills] = useState<string[]>(['Python', 'Machine Learning'])
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<PredictionResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Fetch options on mount
+  useEffect(() => {
+    fetch(`${API_URL}/options`)
+      .then(res => res.json())
+      .then(data => setOptions(data))
+      .catch(err => console.error('Failed to fetch options:', err))
+  }, [])
 
   const handlePredict = async () => {
     setLoading(true)
@@ -52,7 +62,7 @@ export default function App() {
           location: location,
           experience_years: experience,
           company: company || null,
-          skills: skills ? skills.split(',').map(s => s.trim()) : null,
+          skills: selectedSkills.length > 0 ? selectedSkills : null,
         }),
       })
 
@@ -67,6 +77,14 @@ export default function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleSkill = (skill: string) => {
+    setSelectedSkills(prev =>
+      prev.includes(skill)
+        ? prev.filter(s => s !== skill)
+        : [...prev, skill]
+    )
   }
 
   return (
@@ -105,7 +123,7 @@ export default function App() {
           <Card>
             <CardHeader>
               <CardTitle className="text-xl">Job Details</CardTitle>
-              <CardDescription>Enter the job information to get a salary prediction</CardDescription>
+              <CardDescription>Select job information to get a salary prediction</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Job Title */}
@@ -114,11 +132,11 @@ export default function App() {
                   <Briefcase className="h-4 w-4" />
                   Job Title
                 </label>
-                <Input
-                  value={jobTitle}
-                  onChange={(e) => setJobTitle(e.target.value)}
-                  placeholder="e.g., Senior Data Scientist"
-                />
+                <Select value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
+                  {options?.job_titles.map((title) => (
+                    <option key={title} value={title}>{title}</option>
+                  )) || <option value="ML Engineer">ML Engineer</option>}
+                </Select>
               </div>
 
               {/* Location */}
@@ -128,9 +146,9 @@ export default function App() {
                   Location
                 </label>
                 <Select value={location} onChange={(e) => setLocation(e.target.value)}>
-                  {STATES.map((state) => (
-                    <option key={state} value={state}>{state}</option>
-                  ))}
+                  {options?.locations.map((loc) => (
+                    <option key={loc.code} value={loc.code}>{loc.name} ({loc.code})</option>
+                  )) || <option value="CA">California (CA)</option>}
                 </Select>
               </div>
 
@@ -158,7 +176,7 @@ export default function App() {
                 <Input
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
-                  placeholder="e.g., Google"
+                  placeholder="e.g., Google, Meta, OpenAI"
                 />
               </div>
 
@@ -166,13 +184,23 @@ export default function App() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Code className="h-4 w-4" />
-                  Skills <span className="text-muted-foreground">(comma-separated)</span>
+                  Skills
                 </label>
-                <Input
-                  value={skills}
-                  onChange={(e) => setSkills(e.target.value)}
-                  placeholder="e.g., pytorch, nlp, kubernetes"
-                />
+                <div className="flex flex-wrap gap-2">
+                  {(options?.skills || ['Python', 'Machine Learning', 'Deep Learning', 'PyTorch', 'TensorFlow']).map((skill) => (
+                    <button
+                      key={skill}
+                      onClick={() => toggleSkill(skill)}
+                      className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                        selectedSkills.includes(skill)
+                          ? 'bg-primary text-primary-foreground border-primary'
+                          : 'bg-background border-input hover:bg-accent'
+                      }`}
+                    >
+                      {skill}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Submit Button */}
@@ -208,7 +236,7 @@ export default function App() {
 
               {!result && !error && (
                 <div className="text-center py-12 text-muted-foreground">
-                  Enter job details and click "Predict Salary" to see results
+                  Select job details and click "Predict Salary" to see results
                 </div>
               )}
 
@@ -262,6 +290,12 @@ export default function App() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Company</span>
                         <span className="font-medium">{company}</span>
+                      </div>
+                    )}
+                    {selectedSkills.length > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Skills</span>
+                        <span className="font-medium text-right">{selectedSkills.join(', ')}</span>
                       </div>
                     )}
                   </div>

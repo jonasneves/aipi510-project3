@@ -9,6 +9,7 @@ from typing import Optional
 
 import pandas as pd
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 # Add parent directory to path for imports
@@ -24,6 +25,15 @@ app = FastAPI(
     title="AI Salary Prediction API",
     description="Predict AI/ML salaries based on job title, location, experience, and skills",
     version="1.0.0",
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Global variables
@@ -194,6 +204,72 @@ async def model_info():
         "model_type": "XGBoost Regressor",
         "n_features": len(predictor.feature_names),
         "training_metrics": predictor.training_metrics.get("train", {}),
+    }
+
+
+@app.get("/options")
+async def get_options():
+    """Get available options for prediction inputs."""
+    return {
+        "job_titles": [
+            "ML Engineer",
+            "Senior ML Engineer",
+            "Staff ML Engineer",
+            "Principal ML Engineer",
+            "Data Scientist",
+            "Senior Data Scientist",
+            "Staff Data Scientist",
+            "AI Engineer",
+            "Senior AI Engineer",
+            "Research Scientist",
+            "Senior Research Scientist",
+            "Applied Scientist",
+            "Data Engineer",
+            "Senior Data Engineer",
+            "MLOps Engineer",
+            "AI/ML Manager",
+            "Director of ML",
+            "VP of AI",
+        ],
+        "locations": [
+            {"code": "CA", "name": "California"},
+            {"code": "NY", "name": "New York"},
+            {"code": "WA", "name": "Washington"},
+            {"code": "TX", "name": "Texas"},
+            {"code": "MA", "name": "Massachusetts"},
+            {"code": "CO", "name": "Colorado"},
+            {"code": "IL", "name": "Illinois"},
+            {"code": "GA", "name": "Georgia"},
+            {"code": "NC", "name": "North Carolina"},
+            {"code": "FL", "name": "Florida"},
+            {"code": "PA", "name": "Pennsylvania"},
+            {"code": "VA", "name": "Virginia"},
+            {"code": "AZ", "name": "Arizona"},
+            {"code": "OR", "name": "Oregon"},
+            {"code": "MD", "name": "Maryland"},
+            {"code": "NJ", "name": "New Jersey"},
+            {"code": "OH", "name": "Ohio"},
+            {"code": "MI", "name": "Michigan"},
+            {"code": "MN", "name": "Minnesota"},
+            {"code": "UT", "name": "Utah"},
+        ],
+        "skills": [
+            "Python",
+            "Machine Learning",
+            "Deep Learning",
+            "PyTorch",
+            "TensorFlow",
+            "NLP",
+            "Computer Vision",
+            "MLOps",
+            "Kubernetes",
+            "AWS",
+            "GCP",
+            "SQL",
+            "Spark",
+            "LLMs",
+            "Transformers",
+        ],
     }
 
 
