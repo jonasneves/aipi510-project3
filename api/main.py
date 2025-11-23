@@ -2,13 +2,15 @@
 FastAPI application for AI/ML salary prediction service.
 """
 
+import io
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Optional
 
 import pandas as pd
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -20,6 +22,129 @@ from src.processing import FeatureEngineer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# Resume parsing utilities
+JOB_TITLE_PATTERNS = [
+    (r"\b(principal|staff|lead)\s+(ml|machine learning|ai|data)\s+(engineer|scientist)\b", "Principal ML Engineer"),
+    (r"\b(senior|sr\.?)\s+(ml|machine learning)\s+engineer\b", "Senior ML Engineer"),
+    (r"\b(senior|sr\.?)\s+data\s+scientist\b", "Senior Data Scientist"),
+    (r"\b(senior|sr\.?)\s+ai\s+engineer\b", "Senior AI Engineer"),
+    (r"\b(senior|sr\.?)\s+research\s+scientist\b", "Senior Research Scientist"),
+    (r"\b(senior|sr\.?)\s+data\s+engineer\b", "Senior Data Engineer"),
+    (r"\bmlops\s+engineer\b", "MLOps Engineer"),
+    (r"\b(ml|machine learning)\s+engineer\b", "ML Engineer"),
+    (r"\bdata\s+scientist\b", "Data Scientist"),
+    (r"\bai\s+engineer\b", "AI Engineer"),
+    (r"\bresearch\s+scientist\b", "Research Scientist"),
+    (r"\bapplied\s+scientist\b", "Applied Scientist"),
+    (r"\bdata\s+engineer\b", "Data Engineer"),
+    (r"\b(director|head)\s+of\s+(ml|ai|machine learning)\b", "Director of ML"),
+    (r"\bvp\s+of\s+(ai|ml)\b", "VP of AI"),
+    (r"\b(ai|ml|machine learning)\s+manager\b", "AI/ML Manager"),
+]
+
+SKILL_PATTERNS = {
+    "Python": r"\bpython\b",
+    "Machine Learning": r"\b(machine learning|ml)\b",
+    "Deep Learning": r"\b(deep learning|dl)\b",
+    "PyTorch": r"\bpytorch\b",
+    "TensorFlow": r"\b(tensorflow|tf)\b",
+    "NLP": r"\b(nlp|natural language processing)\b",
+    "Computer Vision": r"\b(computer vision|cv|image processing)\b",
+    "MLOps": r"\bmlops\b",
+    "Kubernetes": r"\b(kubernetes|k8s)\b",
+    "AWS": r"\b(aws|amazon web services)\b",
+    "GCP": r"\b(gcp|google cloud)\b",
+    "SQL": r"\bsql\b",
+    "Spark": r"\b(spark|pyspark)\b",
+    "LLMs": r"\b(llm|large language model|gpt|chatgpt)\b",
+    "Transformers": r"\b(transformers|bert|attention)\b",
+}
+
+STATE_PATTERNS = {
+    "CA": r"\b(california|ca|san francisco|los angeles|san diego|san jose|palo alto|mountain view)\b",
+    "NY": r"\b(new york|ny|nyc|manhattan|brooklyn)\b",
+    "WA": r"\b(washington|wa|seattle|redmond|bellevue)\b",
+    "TX": r"\b(texas|tx|austin|dallas|houston)\b",
+    "MA": r"\b(massachusetts|ma|boston|cambridge)\b",
+    "CO": r"\b(colorado|co|denver|boulder)\b",
+    "IL": r"\b(illinois|il|chicago)\b",
+    "GA": r"\b(georgia|ga|atlanta)\b",
+    "NC": r"\b(north carolina|nc|charlotte|raleigh|durham)\b",
+    "FL": r"\b(florida|fl|miami|tampa|orlando)\b",
+}
+
+
+def extract_text_from_pdf(content: bytes) -> str:
+    """Extract text from PDF file."""
+    try:
+        import pdfplumber
+        with pdfplumber.open(io.BytesIO(content)) as pdf:
+            text = ""
+            for page in pdf.pages:
+                text += page.extract_text() or ""
+        return text
+    except Exception as e:
+        logger.error(f"PDF extraction error: {e}")
+        return ""
+
+
+def extract_text_from_docx(content: bytes) -> str:
+    """Extract text from DOCX file."""
+    try:
+        from docx import Document
+        doc = Document(io.BytesIO(content))
+        return "\n".join(para.text for para in doc.paragraphs)
+    except Exception as e:
+        logger.error(f"DOCX extraction error: {e}")
+        return ""
+
+
+def parse_resume(text: str) -> dict:
+    """Parse resume text to extract job-related information."""
+    text_lower = text.lower()
+
+    # Extract job title
+    job_title = None
+    for pattern, title in JOB_TITLE_PATTERNS:
+        if re.search(pattern, text_lower):
+            job_title = title
+            break
+
+    # Extract skills
+    skills = []
+    for skill, pattern in SKILL_PATTERNS.items():
+        if re.search(pattern, text_lower):
+            skills.append(skill)
+
+    # Extract location
+    location = None
+    for state, pattern in STATE_PATTERNS.items():
+        if re.search(pattern, text_lower):
+            location = state
+            break
+
+    # Extract years of experience
+    experience_years = 3  # default
+    yoe_patterns = [
+        r"(\d+)\+?\s*years?\s*(of)?\s*(professional)?\s*experience",
+        r"experience[:\s]+(\d+)\+?\s*years?",
+        r"(\d+)\+?\s*years?\s*in\s*(ml|ai|data|software)",
+    ]
+    for pattern in yoe_patterns:
+        match = re.search(pattern, text_lower)
+        if match:
+            experience_years = min(int(match.group(1)), 30)
+            break
+
+    return {
+        "job_title": job_title,
+        "location": location,
+        "experience_years": experience_years,
+        "skills": skills,
+        "extracted_text_preview": text[:500] if text else None,
+    }
+
 
 app = FastAPI(
     title="AI Salary Prediction API",
@@ -271,6 +396,63 @@ async def get_options():
             "Transformers",
         ],
     }
+
+
+class ResumeParseResponse(BaseModel):
+    """Response model for resume parsing."""
+
+    job_title: Optional[str] = None
+    location: Optional[str] = None
+    experience_years: int = 3
+    skills: list[str] = []
+    success: bool = True
+    message: str = "Resume parsed successfully"
+
+
+@app.post("/parse-resume", response_model=ResumeParseResponse)
+async def parse_resume_endpoint(file: UploadFile = File(...)):
+    """Parse a resume file (PDF or DOCX) to extract job information."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="No file provided")
+
+    filename_lower = file.filename.lower()
+    if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".docx")):
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file format. Please upload a PDF or DOCX file.",
+        )
+
+    try:
+        content = await file.read()
+
+        if filename_lower.endswith(".pdf"):
+            text = extract_text_from_pdf(content)
+        else:
+            text = extract_text_from_docx(content)
+
+        if not text.strip():
+            return ResumeParseResponse(
+                success=False,
+                message="Could not extract text from file. Please try a different format.",
+            )
+
+        parsed = parse_resume(text)
+
+        return ResumeParseResponse(
+            job_title=parsed["job_title"],
+            location=parsed["location"],
+            experience_years=parsed["experience_years"],
+            skills=parsed["skills"],
+            success=True,
+            message="Resume parsed successfully" if parsed["job_title"] else "Resume parsed but no job title detected",
+        )
+
+    except Exception as e:
+        logger.error(f"Resume parsing error: {e}")
+        return ResumeParseResponse(
+            success=False,
+            message=f"Error parsing resume: {str(e)}",
+        )
 
 
 @app.post("/predict", response_model=SalaryResponse)
