@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, MapPinned, Sparkles, Upload, FileText, X } from 'lucide-react'
+import { Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, MapPinned, Sparkles, FileText, X } from 'lucide-react'
 import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { Input } from './components/ui/input'
 import { Select } from './components/ui/select'
@@ -390,11 +390,11 @@ export default function App() {
                         />
                         <YAxis hide />
                         <ReferenceLine
-                          x={result.predicted_salary}
+                          x={result!.predicted_salary}
                           stroke="hsl(174, 72%, 56%)"
                           strokeWidth={2}
                           label={{
-                            value: formatSalary(result.predicted_salary),
+                            value: formatSalary(result!.predicted_salary),
                             position: 'top',
                             fill: 'hsl(174, 72%, 56%)',
                             fontSize: 14,
