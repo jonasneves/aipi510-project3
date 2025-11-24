@@ -114,7 +114,9 @@ jobs:
                 echo "  ✓ Recovered $file from S3 cache"
                 # Track fallback for parquet files only (for summary reporting)
                 if [[ "$file" == *.parquet ]]; then
-                  echo "CACHE_FALLBACK_$file=true" >> $GITHUB_ENV
+                  # Replace dots with underscores for valid bash variable names
+                  safe_name=$(echo "$file" | tr '.' '_')
+                  echo "CACHE_FALLBACK_${safe_name}=true" >> $GITHUB_ENV
                 fi
               else
                 echo "  ✗ Could not recover $file from S3"
@@ -138,7 +140,9 @@ jobs:
             count=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))" 2>/dev/null || echo "0")
             # Check if this file was recovered from cache fallback
             origin="${{ steps.check-cache.outputs.source }}"
-            varname="CACHE_FALLBACK_${filename}"
+            # Replace dots with underscores to match env var naming
+            safe_name=$(echo "$filename" | tr '.' '_')
+            varname="CACHE_FALLBACK_${safe_name}"
             if [ "$origin" = "api" ] && [ -n "${!varname}" ]; then
               origin="s3-fallback"
             fi
