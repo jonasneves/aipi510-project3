@@ -41,6 +41,12 @@ Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 
 **Key Features:** Job title seniority, state location, years of experience, skills (Python, PyTorch, Kubernetes, etc.)
 
+## Experiment Tracking
+
+MLflow is used for experiment tracking during model training.
+
+📊 **[View MLflow Experiment Report](docs/MLflow-Experiment-Report.pdf)**
+
 ## Architecture
 
 ![Architecture Diagram](architecture.png)
