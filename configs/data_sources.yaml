@@ -1,0 +1,79 @@
+# Data Sources Configuration
+# Registry pattern for data loading and standardization
+
+sources:
+  h1b:
+    filename: h1b_ai_salaries.parquet
+    columns:
+      job_title:
+        - job_title
+        - soc_title
+      employer_name: employer_name
+      location_city:
+        - worksite_city
+        - employer_city
+      location_state:
+        - worksite_state
+        - employer_state
+      annual_salary:
+        - annual_salary
+        - wage_from
+      year:
+        - fiscal_year
+        - year
+      soc_code: soc_code
+
+  bls:
+    filename: bls_wage_data.parquet
+    columns:
+      job_title: occupation
+      employer_name: null  # BLS doesn't have employer data
+      location_city: area_name
+      location_state: area_code  # Requires metro mapping
+      annual_salary: mean_annual_wage
+      year: year
+      soc_code: soc_code
+
+  adzuna:
+    filename: adzuna_jobs.parquet
+    columns:
+      job_title: title
+      employer_name: company
+      location_city: location
+      location_state: state
+      annual_salary: salary_avg
+      year: year
+      soc_code: null
+
+# Metro area to state mapping for BLS data
+metro_to_state:
+  "41860": CA  # San Francisco
+  "35620": NY  # New York
+  "42660": WA  # Seattle
+  "14460": MA  # Boston
+  "47900": DC  # Washington DC
+  "26420": TX  # Houston
+  "19100": TX  # Dallas
+  "31080": CA  # Los Angeles
+  "12060": GA  # Atlanta
+  "16980": IL  # Chicago
+  "41940": CA  # San Jose
+  "12420": TX  # Austin
+  "19740": CO  # Denver
+  "0000000": US  # National
+
+# Data validation rules
+validation:
+  salary:
+    min: 30000
+    max: 1500000
+  year:
+    default: 2024
+
+# State name standardization
+state_mapping:
+  CALIFORNIA: CA
+  NEW YORK: NY
+  WASHINGTON: WA
+  TEXAS: TX
+  MASSACHUSETTS: MA

@@ -1,0 +1,88 @@
+# Resume Parsing Patterns
+
+job_title_patterns:
+  # Order matters - first match wins
+  - pattern: '\b(principal|staff|lead)\s+(ml|machine learning|ai|data)\s+(engineer|scientist)\b'
+    display: "Principal ML Engineer"
+  - pattern: '\b(senior|sr\.?)\s+(ml|machine learning)\s+engineer\b'
+    display: "Senior ML Engineer"
+  - pattern: '\b(senior|sr\.?)\s+data\s+scientist\b'
+    display: "Senior Data Scientist"
+  - pattern: '\b(senior|sr\.?)\s+ai\s+engineer\b'
+    display: "Senior AI Engineer"
+  - pattern: '\b(senior|sr\.?)\s+research\s+scientist\b'
+    display: "Senior Research Scientist"
+  - pattern: '\b(senior|sr\.?)\s+data\s+engineer\b'
+    display: "Senior Data Engineer"
+  - pattern: '\bmlops\s+engineer\b'
+    display: "MLOps Engineer"
+  - pattern: '\b(ml|machine learning)\s+engineer\b'
+    display: "ML Engineer"
+  - pattern: '\bdata\s+scientist\b'
+    display: "Data Scientist"
+  - pattern: '\bai\s+engineer\b'
+    display: "AI Engineer"
+  - pattern: '\bresearch\s+scientist\b'
+    display: "Research Scientist"
+  - pattern: '\bapplied\s+scientist\b'
+    display: "Applied Scientist"
+  - pattern: '\bdata\s+engineer\b'
+    display: "Data Engineer"
+  - pattern: '\b(director|head)\s+of\s+(ml|ai|machine learning)\b'
+    display: "Director of ML"
+  - pattern: '\bvp\s+of\s+(ai|ml)\b'
+    display: "VP of AI"
+  - pattern: '\b(ai|ml|machine learning)\s+manager\b'
+    display: "AI/ML Manager"
+
+skill_patterns:
+  Python: '\bpython\b'
+  Machine Learning: '\b(machine learning|ml)\b'
+  Deep Learning: '\b(deep learning|dl)\b'
+  PyTorch: '\bpytorch\b'
+  TensorFlow: '\b(tensorflow|tf)\b'
+  NLP: '\b(nlp|natural language processing)\b'
+  Computer Vision: '\b(computer vision|cv|image processing)\b'
+  MLOps: '\bmlops\b'
+  Kubernetes: '\b(kubernetes|k8s)\b'
+  AWS: '\b(aws|amazon web services)\b'
+  GCP: '\b(gcp|google cloud)\b'
+  SQL: '\bsql\b'
+  Spark: '\b(spark|pyspark)\b'
+  LLMs: '\b(llm|large language model|gpt|chatgpt)\b'
+  Transformers: '\b(transformers|bert|attention)\b'
+
+state_patterns:
+  CA: '\b(california|ca|san francisco|los angeles|san diego|san jose|palo alto|mountain view)\b'
+  NY: '\b(new york|ny|nyc|manhattan|brooklyn)\b'
+  WA: '\b(washington|wa|seattle|redmond|bellevue)\b'
+  TX: '\b(texas|tx|austin|dallas|houston)\b'
+  MA: '\b(massachusetts|ma|boston|cambridge)\b'
+  CO: '\b(colorado|co|denver|boulder)\b'
+  IL: '\b(illinois|il|chicago)\b'
+  GA: '\b(georgia|ga|atlanta)\b'
+  NC: '\b(north carolina|nc|charlotte|raleigh|durham)\b'
+  FL: '\b(florida|fl|miami|tampa|orlando)\b'
+
+salary_factors:
+  high_pay_states:
+    - CA
+    - NY
+    - WA
+    - MA
+  low_pay_states:
+    - FL
+    - TX
+    - GA
+    - NC
+  high_value_skills:
+    - LLMs
+    - Kubernetes
+    - MLOps
+    - Deep Learning
+    - PyTorch
+  senior_keywords:
+    - principal
+    - staff
+    - director
+    - vp

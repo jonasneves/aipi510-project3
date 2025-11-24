@@ -25,12 +25,11 @@ def collect_data(args):
     from .data_collectors import (
         H1BSalaryCollector,
         BLSDataCollector,
-        GoogleTrendsCollector,
         AdzunaJobsCollector,
     )
 
     if args.source == "all" or args.source == "h1b":
-        print("\n[1/4] Collecting H1B Salary Data...")
+        print("\n[1/3] Collecting H1B Salary Data...")
         try:
             h1b = H1BSalaryCollector(data_dir=args.data_dir)
             df = h1b.collect(years=args.years or [2023, 2024])
@@ -43,27 +42,19 @@ def collect_data(args):
             print(f"  Error collecting H1B data: {e}")
 
     if args.source == "all" or args.source == "bls":
-        print("\n[2/4] Collecting BLS Wage Data...")
+        print("\n[2/3] Collecting BLS Wage Data...")
         try:
             bls = BLSDataCollector(data_dir=args.data_dir)
             df = bls.collect(start_year=args.start_year or 2022, end_year=2024)
             if not df.empty:
                 print(f"  Collected {len(df)} BLS records")
+            else:
+                print("  Warning: No BLS data collected (check API key or series IDs)")
         except Exception as e:
             print(f"  Error collecting BLS data: {e}")
 
-    if args.source == "all" or args.source == "trends":
-        print("\n[3/4] Collecting Google Trends Data...")
-        try:
-            trends = GoogleTrendsCollector(data_dir=args.data_dir)
-            results = trends.collect()
-            for key, df in results.items():
-                print(f"  {key}: {len(df)} records")
-        except Exception as e:
-            print(f"  Error collecting trends data: {e}")
-
     if args.source == "all" or args.source == "jobs":
-        print("\n[4/4] Collecting Job Posting Data...")
+        print("\n[3/3] Collecting Job Posting Data...")
         try:
             adzuna = AdzunaJobsCollector(data_dir=args.data_dir)
             results = adzuna.collect()
@@ -264,6 +255,12 @@ def predict(args):
 
     from .models import SalaryPredictor
     from .processing import FeatureEngineer
+    from .utils.config_loader import ConfigLoader
+
+    # Load encodings from config (same as API)
+    features_config = ConfigLoader.get_features()
+    STATE_INDEX = features_config["encodings"]["state_index"]
+    TIER_INDEX = features_config["encodings"]["tier_index"]
 
     # Load model
     predictor = SalaryPredictor(model_dir=args.model_dir)
@@ -292,7 +289,12 @@ def predict(args):
     # Engineer features (don't use prepare_for_modeling - it filters by salary)
     engineer = FeatureEngineer()
     data = engineer.engineer_features(data)
-    data = engineer.encode_categoricals(data, fit=True)
+
+    # Use fixed encodings from config (same as API) - NOT fit=True which creates new encoders
+    state = location.upper()
+    data["state_clean_encoded"] = STATE_INDEX.get(state, 20)
+    company_tier = data["company_tier"].iloc[0] if "company_tier" in data.columns else "unknown"
+    data["company_tier_encoded"] = TIER_INDEX.get(company_tier, 6)
 
     # Set experience
     if "estimated_yoe" in data.columns:
@@ -389,7 +391,7 @@ Examples:
     collect_parser = subparsers.add_parser("collect", help="Collect data from sources")
     collect_parser.add_argument(
         "--source",
-        choices=["all", "h1b", "bls", "trends", "jobs"],
+        choices=["all", "h1b", "bls", "jobs"],
         default="all",
         help="Data source to collect (default: all)",
     )

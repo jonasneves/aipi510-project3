@@ -2,65 +2,42 @@
 Feature Engineering Pipeline
 
 Creates features for salary prediction from multiple data sources.
-Combines H1B data, BLS statistics, job postings, and Google Trends.
+Combines H1B data, BLS statistics, and job postings.
 """
 
 import re
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 
+# Import config loader
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from utils.config_loader import ConfigLoader
+
 
 class FeatureEngineer:
     """Feature engineering for salary prediction model."""
 
-    # Tech skill categories and their market value weights
-    SKILL_CATEGORIES = {
-        "deep_learning": ["pytorch", "tensorflow", "keras", "deep learning", "neural network"],
-        "nlp": ["nlp", "natural language", "bert", "gpt", "transformer", "llm", "langchain", "huggingface"],
-        "computer_vision": ["computer vision", "opencv", "image recognition", "object detection", "yolo"],
-        "mlops": ["mlops", "kubeflow", "mlflow", "airflow", "docker", "kubernetes"],
-        "cloud_ml": ["sagemaker", "vertex ai", "azure ml", "databricks", "aws", "gcp", "azure"],
-        "big_data": ["spark", "hadoop", "kafka", "flink", "distributed"],
-        "traditional_ml": ["scikit-learn", "xgboost", "random forest", "regression", "classification"],
-        "data_engineering": ["sql", "etl", "data pipeline", "data warehouse", "snowflake"],
-    }
-
-    # Company tier categories (impacts compensation)
-    COMPANY_TIERS = {
-        "faang": ["google", "meta", "amazon", "apple", "netflix", "microsoft", "alphabet"],
-        "tier1": ["openai", "anthropic", "deepmind", "nvidia", "tesla", "salesforce", "uber", "airbnb", "stripe"],
-        "tier2": ["linkedin", "twitter", "snap", "lyft", "pinterest", "doordash", "instacart", "coinbase"],
-        "finance": ["citadel", "two sigma", "jane street", "de shaw", "goldman", "morgan stanley", "jpmorgan"],
-        "startup": [],  # Default for unknown companies
-    }
-
-    # Location cost-of-living multipliers (relative to national average)
-    LOCATION_COL = {
-        "CA": 1.35,  # California
-        "NY": 1.30,  # New York
-        "WA": 1.20,  # Washington
-        "MA": 1.25,  # Massachusetts
-        "CO": 1.10,  # Colorado
-        "TX": 1.00,  # Texas
-        "IL": 1.05,  # Illinois
-        "GA": 0.95,  # Georgia
-        "NC": 0.90,  # North Carolina
-        "FL": 1.00,  # Florida
-        "PA": 1.00,  # Pennsylvania
-        "VA": 1.10,  # Virginia
-        "AZ": 0.95,  # Arizona
-        "OR": 1.10,  # Oregon
-        "MD": 1.15,  # Maryland
-    }
-
     def __init__(self):
-        """Initialize feature engineer."""
+        """Initialize feature engineer with config-loaded values."""
         self.label_encoders = {}
         self.scaler = StandardScaler()
         self._fitted = False
+
+        config = ConfigLoader.get_features()
+        self.SKILL_CATEGORIES = config["skill_categories"]
+        self.COMPANY_TIERS = config["company_tiers"]
+        self.LOCATION_COL = config["location_multipliers"]
+        self._tech_hubs = config["tech_hubs"]
+
+        # Fixed encodings for consistency across training and prediction
+        encodings = config.get("encodings", {})
+        self._state_index = encodings.get("state_index", {})
+        self._tier_index = encodings.get("tier_index", {})
 
     def extract_skills(self, text: str) -> dict[str, int]:
         """
@@ -197,15 +174,15 @@ class FeatureEngineer:
         """
         col_multiplier = self.LOCATION_COL.get(state, 1.0)
 
-        # Tech hub flags
-        major_tech_hub = state in ["CA", "WA", "NY"]
-        secondary_hub = state in ["MA", "CO", "TX", "IL", "GA"]
+        major_tech_hub = state in self._tech_hubs["major"]
+        secondary_hub = state in self._tech_hubs["secondary"]
+        remote_friendly = state in self._tech_hubs["remote_friendly"]
 
         return {
             "col_multiplier": col_multiplier,
             "is_major_tech_hub": int(major_tech_hub),
             "is_secondary_hub": int(secondary_hub),
-            "is_remote_friendly": int(state in ["CO", "TX", "FL", "AZ"]),
+            "is_remote_friendly": int(remote_friendly),
         }
 
     def engineer_features(
@@ -315,12 +292,12 @@ class FeatureEngineer:
         fit: bool = True,
     ) -> pd.DataFrame:
         """
-        Encode categorical variables.
+        Encode categorical variables using fixed mappings from config.
 
         Args:
             df: Input DataFrame
             categorical_cols: Columns to encode
-            fit: Whether to fit encoders (True for training)
+            fit: Whether to fit encoders (ignored - always uses fixed mappings)
 
         Returns:
             DataFrame with encoded categoricals
@@ -334,15 +311,25 @@ class FeatureEngineer:
             if col not in df.columns:
                 continue
 
-            if fit:
-                self.label_encoders[col] = LabelEncoder()
-                # Handle unseen categories
-                df[f"{col}_encoded"] = self.label_encoders[col].fit_transform(
-                    df[col].fillna("unknown").astype(str)
+            # Use fixed encodings from config for consistency
+            if col == "state_clean" and self._state_index:
+                default_idx = max(self._state_index.values()) + 1 if self._state_index else 20
+                df[f"{col}_encoded"] = df[col].fillna("unknown").astype(str).apply(
+                    lambda x: self._state_index.get(x.upper(), default_idx)
+                )
+            elif col == "company_tier" and self._tier_index:
+                default_idx = self._tier_index.get("unknown", 6)
+                df[f"{col}_encoded"] = df[col].fillna("unknown").astype(str).apply(
+                    lambda x: self._tier_index.get(x, default_idx)
                 )
             else:
-                if col in self.label_encoders:
-                    # Handle unseen categories
+                # Fallback to LabelEncoder for other columns
+                if fit:
+                    self.label_encoders[col] = LabelEncoder()
+                    df[f"{col}_encoded"] = self.label_encoders[col].fit_transform(
+                        df[col].fillna("unknown").astype(str)
+                    )
+                elif col in self.label_encoders:
                     df[col] = df[col].fillna("unknown").astype(str)
                     known_classes = set(self.label_encoders[col].classes_)
                     df[col] = df[col].apply(
