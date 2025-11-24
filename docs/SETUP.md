@@ -47,7 +47,7 @@ make pipeline
 
 ```bash
 make api       # FastAPI at localhost:8000
-make frontend  # Streamlit at localhost:8501
+make frontend  # React at localhost:5173
 make mlflow    # MLFlow UI at localhost:5000
 ```
 

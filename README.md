@@ -21,6 +21,7 @@ Predict AI/ML salaries using machine learning. Built for Duke AIPI 510 Module Pr
 |--------|-------------|---------|
 | [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL certified visa applications with actual salaries | ~50k AI/ML jobs |
 | [BLS OES](https://www.bls.gov/oes/) | Occupational wage statistics by state | Benchmark data |
+| [Adzuna](https://developer.adzuna.com/) | Job postings with salary ranges | Market data |
 
 Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 

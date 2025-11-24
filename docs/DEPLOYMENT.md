@@ -2,7 +2,7 @@
 
 ## Cloud Hosting (GitHub Actions + Cloudflare)
 
-This project uses GitHub Actions runners with Cloudflare Tunnel for hosting.
+This project uses GitHub Actions runners with Cloudflare Tunnel for hosting. The React frontend and FastAPI backend run on the same runner.
 
 ### Prerequisites
 
