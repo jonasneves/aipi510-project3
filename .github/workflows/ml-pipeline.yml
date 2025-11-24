@@ -97,7 +97,7 @@ jobs:
         if: steps.check-cache.outputs.source == 'api' && github.event_name != 'pull_request'
         run: |
           echo "Checking for missing data files..."
-          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet"
+          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
           MISSING_FILES=""
 
           for file in $EXPECTED_FILES; do
@@ -112,7 +112,10 @@ jobs:
             for file in $MISSING_FILES; do
               if aws s3 cp s3://${{ env.S3_BUCKET }}/data/raw/$file data/raw/$file 2>/dev/null; then
                 echo "  ✓ Recovered $file from S3 cache"
-                echo "CACHE_FALLBACK_$file=true" >> $GITHUB_ENV
+                # Track fallback for parquet files only (for summary reporting)
+                if [[ "$file" == *.parquet ]]; then
+                  echo "CACHE_FALLBACK_$file=true" >> $GITHUB_ENV
+                fi
               else
                 echo "  ✗ Could not recover $file from S3"
               fi
@@ -131,10 +134,12 @@ jobs:
           echo "|--------|---------|--------|" >> $GITHUB_STEP_SUMMARY
           for f in data/raw/*.parquet; do
             name=$(basename "$f" .parquet)
+            filename=$(basename "$f")
             count=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))" 2>/dev/null || echo "0")
             # Check if this file was recovered from cache fallback
             origin="${{ steps.check-cache.outputs.source }}"
-            if [ "$origin" = "api" ] && [ -n "${!CACHE_FALLBACK_${f}}" ]; then
+            varname="CACHE_FALLBACK_${filename}"
+            if [ "$origin" = "api" ] && [ -n "${!varname}" ]; then
               origin="s3-fallback"
             fi
             echo "| $name | $count | $origin |" >> $GITHUB_STEP_SUMMARY
