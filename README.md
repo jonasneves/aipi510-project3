@@ -5,16 +5,41 @@
 [![API Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/api&label=API)](https://aisalary.neevs.io/api)
 [![App Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/app&label=App)](https://aisalary.neevs.io)
 
-Predict AI/ML salaries using XGBoost, FastAPI, React, and MLFlow.
-
 **Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs)
 
-## Features
+## Overview
 
-- **Resume Upload** - Drag & drop your resume (PDF/DOCX) to auto-fill job details
-- **Real-time Predictions** - Salary updates instantly as you change inputs
-- **Smart Parsing** - Extracts job title, skills, experience, and location from resumes
-- **Confidence Intervals** - Shows 90% CI salary range, not just point estimate
+Predict AI/ML salaries using machine learning. Built for Duke AIPI 510 Module Project 3.
+
+**Problem:** Estimate salary ranges for AI/ML roles based on job title, location, experience, and skills.
+
+**Solution:** XGBoost regression model trained on H1B visa filings and BLS wage data, deployed as a FastAPI service with a React frontend.
+
+## Dataset
+
+| Source | Description | Records |
+|--------|-------------|---------|
+| [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL certified visa applications with actual salaries | ~50k AI/ML jobs |
+| [BLS OES](https://www.bls.gov/oes/) | Occupational wage statistics by state | Benchmark data |
+
+Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
+
+## Model
+
+**Architecture:** XGBoost Regressor
+
+| Parameter | Value |
+|-----------|-------|
+| n_estimators | 200 |
+| max_depth | 6 |
+| learning_rate | 0.1 |
+
+**Evaluation Metrics:**
+- MAE: ~$15,000
+- RMSE: ~$22,000
+- R²: ~0.65
+
+**Key Features:** Job title seniority, state location, years of experience, skills (Python, PyTorch, Kubernetes, etc.)
 
 ## Architecture
 
@@ -46,11 +71,10 @@ make frontend          # Start React dev server (port 5173)
 ```
 src/                  # ML pipeline (collectors, processing, models)
 api/                  # FastAPI endpoints
-frontend-react/       # React + Vite + Tailwind frontend
+frontend-react/       # React frontend
 config.yaml           # Pipeline configuration
-Makefile              # Convenience commands
-Dockerfile            # Multi-stage builds
-docker-compose.yml    # Service orchestration
+Makefile              # Commands
+Dockerfile            # Container build
 ```
 
 ## API
@@ -61,10 +85,6 @@ curl -X POST https://aisalary.neevs.io/api/predict \
   -H "Content-Type: application/json" \
   -d '{"job_title": "ML Engineer", "location": "CA", "experience_years": 5}'
 
-# Parse resume
-curl -X POST https://aisalary.neevs.io/api/parse-resume \
-  -F "file=@resume.pdf"
-
 # Get options
 curl https://aisalary.neevs.io/api/options
 ```
@@ -73,8 +93,14 @@ curl https://aisalary.neevs.io/api/options
 
 - [Setup Guide](docs/SETUP.md) - Local development
 - [Deployment Guide](docs/DEPLOYMENT.md) - Cloud deployment
-- [Cloudflare Tunnel](docs/CLOUDFLARE_TUNNEL.md) - Hosting setup
-- [AWS Setup](AWS_SETUP.md) - S3 and OIDC configuration
+- [AWS Setup](AWS_SETUP.md) - S3 configuration
+
+## Limitations
+
+- **Geographic bias:** H1B data skews toward CA, NY, WA where most visa sponsors operate
+- **Role coverage:** Limited to AI/ML titles; doesn't cover adjacent roles well
+- **Temporal lag:** H1B filings reflect offers made 6-12 months prior
+- **Company representation:** Large tech companies overrepresented vs. startups
 
 ## License
 
