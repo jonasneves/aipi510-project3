@@ -92,8 +92,7 @@ curl https://aisalary.neevs.io/api/options
 ## Documentation
 
 - [Setup Guide](docs/SETUP.md) - Local development
-- [Deployment Guide](docs/DEPLOYMENT.md) - Cloud deployment
-- [AWS Setup](AWS_SETUP.md) - S3 configuration
+- [Deployment Guide](docs/DEPLOYMENT.md) - Cloud deployment & AWS setup
 
 ## Limitations
 

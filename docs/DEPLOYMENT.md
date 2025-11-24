@@ -1,54 +1,120 @@
 # Deployment Guide
 
-## API Deployment (AWS)
+## Cloud Hosting (GitHub Actions + Cloudflare)
 
-### Option 1: AWS App Runner
+This project uses GitHub Actions runners with Cloudflare Tunnel for hosting.
+
+### Prerequisites
+
+1. Cloudflare account with domain
+2. AWS S3 bucket with trained model
+3. GitHub secrets configured
+
+### Setup Steps
+
+#### 1. Create Cloudflare Tunnel
+
+In Cloudflare Zero Trust dashboard:
+1. Go to **Networks** > **Tunnels** > **Create a tunnel**
+2. Name it (e.g., `salary-predictor`)
+3. Copy the tunnel token
+
+#### 2. Configure Public Hostname
+
+| Setting | Value |
+|---------|-------|
+| Subdomain | `aisalary` |
+| Domain | your domain |
+| Service | `HTTP://localhost:8501` |
+
+#### 3. Add GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `CLOUDFLARE_TUNNEL_TOKEN` | Tunnel token |
+| `AWS_ROLE_ARN` | IAM role ARN |
+
+### Usage
 
 ```bash
-# Push to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+# Start hosting
+gh workflow run tunnel-hosting.yml
 
-docker build --target api -t salary-api .
-docker tag salary-api:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/salary-api:latest
-docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/salary-api:latest
-
-# Deploy via AWS Console: App Runner > Create Service > Container Registry
+# Custom duration
+gh workflow run tunnel-hosting.yml -f duration_hours=2
 ```
 
-### Option 2: AWS Lambda + API Gateway
+---
+
+## AWS S3 Setup
+
+### Bucket Structure
+
+```
+ai-salary-predictor/
+├── data/raw/
+├── data/processed/
+└── models/
+```
+
+### Setup Steps
+
+#### 1. Create Bucket
 
 ```bash
-# Build container
-docker build --target api -t salary-api .
-
-# Push to ECR, then create Lambda function from container image
-# Configure API Gateway HTTP API as trigger
+aws s3 mb s3://ai-salary-predictor --region us-east-1
 ```
 
-## Frontend Deployment
+#### 2. Create OIDC Provider
 
-### Streamlit Cloud (Recommended)
+AWS Console: IAM > Identity providers > Add provider
 
-1. Push code to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect repository, set main file: `frontend/app.py`
-4. Add secret: `API_URL=https://your-api-endpoint.amazonaws.com`
+- **Type**: OpenID Connect
+- **URL**: `https://token.actions.githubusercontent.com`
+- **Audience**: `sts.amazonaws.com`
 
-### HuggingFace Spaces
+#### 3. Create IAM Role
 
-1. Create new Space (Streamlit SDK)
-2. Upload `frontend/app.py`
-3. Set `API_URL` in Space settings
+Trust policy:
 
-## S3 Configuration
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": {
+      "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+    },
+    "Action": "sts:AssumeRoleWithWebIdentity",
+    "Condition": {
+      "StringEquals": {
+        "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
+      },
+      "StringLike": {
+        "token.actions.githubusercontent.com:sub": "repo:YOUR_USER/YOUR_REPO:*"
+      }
+    }
+  }]
+}
+```
 
-See [AWS_SETUP.md](../AWS_SETUP.md) for OIDC authentication.
+#### 4. Attach S3 Permissions
 
-## CI/CD
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Effect": "Allow",
+    "Action": ["s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket"],
+    "Resource": [
+      "arn:aws:s3:::ai-salary-predictor",
+      "arn:aws:s3:::ai-salary-predictor/*"
+    ]
+  }]
+}
+```
 
-GitHub Actions (`.github/workflows/ml-pipeline.yml`):
-- Triggers on push to main
-- Uses S3 cache for data
-- Uploads models to S3 with versioning
+#### 5. Add GitHub Secret
 
-Force fresh data: Actions > ML Pipeline > Run workflow > Check "Force data collection"
+- **Name**: `AWS_ROLE_ARN`
+- **Value**: `arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME`

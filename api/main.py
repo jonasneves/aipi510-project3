@@ -226,10 +226,6 @@ class FeatureImportanceResponse(BaseModel):
     total_features: int
 
 
-class BatchSalaryRequest(BaseModel):
-    """Request model for batch predictions."""
-
-    jobs: list[SalaryInput]
 
 
 def load_model():
@@ -689,25 +685,6 @@ async def predict(job: SalaryInput):
     except Exception as e:
         logger.error(f"Prediction error: {e}")
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
-
-
-@router.post("/predict/batch")
-async def predict_batch(request: BatchSalaryRequest):
-    """Predict salaries for multiple jobs."""
-    if predictor is None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-
-    try:
-        predictions = []
-        for job in request.jobs:
-            result = await predict(job)
-            predictions.append(result.model_dump())
-
-        return {"predictions": predictions, "count": len(predictions)}
-
-    except Exception as e:
-        logger.error(f"Batch prediction error: {e}")
-        raise HTTPException(status_code=500, detail=f"Batch prediction failed: {str(e)}")
 
 
 # Mount router AFTER all routes are defined
