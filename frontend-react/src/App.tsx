@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { DollarSign, Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, TrendingDown, Github, Upload, FileText, X, ToggleLeft, ToggleRight, GitCompare, ArrowRight } from 'lucide-react'
+import { Briefcase, MapPin, Clock, Building2, Code, Loader2, TrendingUp, MapPinned, Sparkles, Upload, FileText, X } from 'lucide-react'
+import { AreaChart, Area, XAxis, YAxis, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { Input } from './components/ui/input'
 import { Select } from './components/ui/select'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from './components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent } from './components/ui/card'
 import { Slider } from './components/ui/slider'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs'
 
 // Use /api path in production (Cloudflare routes to API), fallback to localhost for dev
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api')
@@ -14,11 +16,18 @@ interface Options {
   skills: string[]
 }
 
+interface FeatureFactor {
+  name: string
+  impact: string
+  description: string
+}
+
 interface PredictionResult {
   predicted_salary: number
   salary_low: number
   salary_high: number
   confidence_level: string
+  top_factors: FeatureFactor[]
 }
 
 interface ResumeParseResult {
@@ -50,6 +59,26 @@ function useDebounce<T>(value: T, delay: number): T {
   return debouncedValue
 }
 
+// Generate bell curve data points
+function generateBellCurve(low: number, median: number, high: number) {
+  const points = []
+  const stdDev = (high - low) / 3.29 // 90% CI = ~3.29 std deviations
+  const numPoints = 100
+
+  for (let i = 0; i < numPoints; i++) {
+    const x = low - stdDev + (i / (numPoints - 1)) * (high - low + 2 * stdDev)
+    const z = (x - median) / stdDev
+    const y = Math.exp(-0.5 * z * z) / (stdDev * Math.sqrt(2 * Math.PI))
+    points.push({
+      salary: x,
+      density: y,
+      inRange: x >= low && x <= high
+    })
+  }
+
+  return points
+}
+
 export default function App() {
   const [options, setOptions] = useState<Options | null>(null)
   const [jobTitle, setJobTitle] = useState('ML Engineer')
@@ -68,25 +97,12 @@ export default function App() {
   const [parsing, setParsing] = useState(false)
   const [parseMessage, setParseMessage] = useState<string | null>(null)
 
-  // Comparison mode state
-  const [compareMode, setCompareMode] = useState(false)
-  const [compareLocation, setCompareLocation] = useState('NY')
-  const [compareExperience, setCompareExperience] = useState(3)
-  const [compareSkills, setCompareSkills] = useState<string[]>(['Python', 'Machine Learning'])
-  const [compareResult, setCompareResult] = useState<PredictionResult | null>(null)
-  const [compareLoading, setCompareLoading] = useState(false)
-
   // Create debounced values for auto-predict
   const debouncedJobTitle = useDebounce(jobTitle, 300)
   const debouncedLocation = useDebounce(location, 300)
   const debouncedExperience = useDebounce(experience, 300)
   const debouncedCompany = useDebounce(company, 500)
   const debouncedSkills = useDebounce(selectedSkills, 300)
-
-  // Debounced comparison values
-  const debouncedCompareLocation = useDebounce(compareLocation, 300)
-  const debouncedCompareExperience = useDebounce(compareExperience, 300)
-  const debouncedCompareSkills = useDebounce(compareSkills, 300)
 
   // Fetch options on mount
   useEffect(() => {
@@ -136,67 +152,12 @@ export default function App() {
     }
   }, [debouncedJobTitle, debouncedLocation, debouncedExperience, debouncedCompany, debouncedSkills, inputMode, uploadedFile, predict])
 
-  // Comparison prediction function
-  const predictComparison = useCallback(async () => {
-    if (!jobTitle || !compareLocation || !compareMode) return
-
-    setCompareLoading(true)
-
-    try {
-      const response = await fetch(`${API_URL}/predict`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          job_title: jobTitle,
-          location: compareLocation,
-          experience_years: compareExperience,
-          company: company || null,
-          skills: compareSkills.length > 0 ? compareSkills : null,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setCompareResult(data)
-    } catch (err) {
-      console.error('Comparison prediction error:', err)
-    } finally {
-      setCompareLoading(false)
-    }
-  }, [jobTitle, compareLocation, compareExperience, company, compareSkills, compareMode])
-
-  // Auto-predict comparison on changes
-  useEffect(() => {
-    if (compareMode && (inputMode === 'manual' || uploadedFile)) {
-      predictComparison()
-    }
-  }, [debouncedCompareLocation, debouncedCompareExperience, debouncedCompareSkills, debouncedJobTitle, debouncedCompany, compareMode, inputMode, uploadedFile, predictComparison])
-
   const toggleSkill = (skill: string) => {
     setSelectedSkills(prev =>
       prev.includes(skill)
         ? prev.filter(s => s !== skill)
         : [...prev, skill]
     )
-  }
-
-  const toggleCompareSkill = (skill: string) => {
-    setCompareSkills(prev =>
-      prev.includes(skill)
-        ? prev.filter(s => s !== skill)
-        : [...prev, skill]
-    )
-  }
-
-  // Initialize compare mode with current values
-  const enableCompareMode = () => {
-    setCompareLocation(location === 'CA' ? 'NY' : 'CA')
-    setCompareExperience(experience)
-    setCompareSkills([...selectedSkills])
-    setCompareMode(true)
   }
 
   // File upload handlers
@@ -272,431 +233,386 @@ export default function App() {
     setResult(null)
   }
 
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-primary" />
-            <span className="font-semibold text-lg">AI Salary Predictor</span>
-          </div>
-          <a
-            href="https://github.com/jonasneves/aipi510-project3"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Github className="h-5 w-5" />
-          </a>
-        </div>
-      </header>
+  // Generate bell curve data
+  const bellCurveData = result
+    ? generateBellCurve(result.salary_low, result.predicted_salary, result.salary_high)
+    : null
 
-      {/* Main Content */}
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">
-            Predict AI/ML Salaries
+  return (
+    <div className="min-h-screen relative">
+      {/* Background Image */}
+      <div
+        className="fixed inset-0 z-0 opacity-30"
+        style={{
+          backgroundImage: 'url(/background.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10">
+        {/* Header */}
+        <header className="border-b border-border/50 backdrop-blur-sm">
+          <div className="container mx-auto px-4 py-4 flex items-center gap-3">
+            <img src="/logo.png" alt="AI Salary Predictor" className="h-8 w-8" />
+            <div>
+              <span className="font-semibold text-lg">AI Salary Predictor</span>
+              <p className="text-xs text-muted-foreground">Data-driven insights from H1B, BLS, and job postings</p>
+            </div>
+          </div>
+        </header>
+
+        {/* Hero Section */}
+        <div className="text-center py-12 px-4">
+          <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
+            Stop Guessing Your <span className="text-gradient">AI Salary.</span>
           </h1>
-          <p className="text-muted-foreground">
-            Upload your resume or enter details manually for instant salary estimates
+          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            Get instant, data-backed salary estimates with confidence intervals.
           </p>
         </div>
 
-        {/* Mode Toggle */}
-        <div className="flex justify-center mb-6">
-          <button
-            onClick={() => setInputMode(inputMode === 'upload' ? 'manual' : 'upload')}
-            className="flex items-center gap-2 px-4 py-2 rounded-full border bg-secondary/50 hover:bg-secondary transition-colors"
-          >
-            {inputMode === 'upload' ? (
-              <>
-                <ToggleLeft className="h-5 w-5" />
-                <span className="text-sm font-medium">Switch to Manual Input</span>
-              </>
-            ) : (
-              <>
-                <ToggleRight className="h-5 w-5" />
-                <span className="text-sm font-medium">Switch to Resume Upload</span>
-              </>
-            )}
-          </button>
-        </div>
+        {/* Main Content */}
+        <main className="container mx-auto px-4 pb-12 max-w-5xl">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Input Card */}
+            <Card className="bg-gradient-card border-border/50">
+              <CardContent className="p-0">
+                <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as 'upload' | 'manual')}>
+                  <TabsList className="w-full rounded-t-lg rounded-b-none">
+                    <TabsTrigger value="upload">Upload Resume</TabsTrigger>
+                    <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+                  </TabsList>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          {/* Input Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">
-                {inputMode === 'upload' ? 'Upload Resume' : 'Job Details'}
-              </CardTitle>
-              <CardDescription>
-                {inputMode === 'upload'
-                  ? 'Drop your resume to auto-fill job details'
-                  : 'Predictions update automatically as you type'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Resume Upload Zone */}
-              {inputMode === 'upload' && !uploadedFile && (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`relative border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                    isDragging
-                      ? 'border-primary bg-primary/5'
-                      : 'border-muted-foreground/25 hover:border-primary/50'
-                  }`}
-                >
-                  <input
-                    type="file"
-                    accept=".pdf,.docx"
-                    onChange={handleFileSelect}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  />
-                  <Upload className={`h-10 w-10 mx-auto mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <p className="font-medium mb-1">
-                    {isDragging ? 'Drop your resume here' : 'Drag & drop your resume'}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    or click to browse (PDF, DOCX)
-                  </p>
-                </div>
-              )}
-
-              {/* Uploaded File Status */}
-              {uploadedFile && (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border">
-                  <div className="flex items-center gap-3">
-                    <FileText className="h-5 w-5 text-primary" />
-                    <div>
-                      <p className="font-medium text-sm">{uploadedFile.name}</p>
-                      {parseMessage && (
-                        <p className="text-xs text-muted-foreground">{parseMessage}</p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    onClick={clearFile}
-                    className="p-1 hover:bg-secondary rounded"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-              )}
-
-              {/* Parsing Indicator */}
-              {parsing && (
-                <div className="flex items-center justify-center gap-2 py-4">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <span className="text-sm">Analyzing resume...</span>
-                </div>
-              )}
-
-              {/* Form Fields (shown in manual mode or after upload) */}
-              {(inputMode === 'manual' || uploadedFile) && !parsing && (
-                <>
-                  {/* Job Title */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Briefcase className="h-4 w-4" />
-                      Job Title
-                    </label>
-                    <Select value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
-                      {options?.job_titles.map((title) => (
-                        <option key={title} value={title}>{title}</option>
-                      )) || <option value="ML Engineer">ML Engineer</option>}
-                    </Select>
-                  </div>
-
-                  {/* Location */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <MapPin className="h-4 w-4" />
-                      Location
-                    </label>
-                    <Select value={location} onChange={(e) => setLocation(e.target.value)}>
-                      {options?.locations.map((loc) => (
-                        <option key={loc.code} value={loc.code}>{loc.name} ({loc.code})</option>
-                      )) || <option value="CA">California (CA)</option>}
-                    </Select>
-                  </div>
-
-                  {/* Experience */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Clock className="h-4 w-4" />
-                      Years of Experience
-                    </label>
-                    <Slider
-                      min={0}
-                      max={20}
-                      value={experience}
-                      onChange={(e) => setExperience(Number(e.target.value))}
-                      label={`${experience} years`}
-                    />
-                  </div>
-
-                  {/* Company */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Building2 className="h-4 w-4" />
-                      Company <span className="text-muted-foreground">(optional)</span>
-                    </label>
-                    <Input
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      placeholder="e.g., Google, Meta, OpenAI"
-                    />
-                  </div>
-
-                  {/* Skills */}
-                  <div className="space-y-2">
-                    <label className="text-sm font-medium flex items-center gap-2">
-                      <Code className="h-4 w-4" />
-                      Skills
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {(options?.skills || ['Python', 'Machine Learning', 'Deep Learning', 'PyTorch', 'TensorFlow']).map((skill) => (
-                        <button
-                          key={skill}
-                          onClick={() => toggleSkill(skill)}
-                          className={`px-3 py-1 text-sm rounded-full border transition-colors ${
-                            selectedSkills.includes(skill)
-                              ? 'bg-primary text-primary-foreground border-primary'
-                              : 'bg-background border-input hover:bg-accent'
+                  <div className="p-6">
+                    <TabsContent value="upload" className="mt-0">
+                      {!uploadedFile && (
+                        <div
+                          onDragOver={handleDragOver}
+                          onDragLeave={handleDragLeave}
+                          onDrop={handleDrop}
+                          className={`relative border-2 border-dashed rounded-lg p-12 text-center transition-all ${
+                            isDragging
+                              ? 'border-primary bg-primary/10'
+                              : 'border-muted-foreground/25 hover:border-primary/50 bg-muted/30'
                           }`}
                         >
-                          {skill}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </Card>
+                          <input
+                            type="file"
+                            accept=".pdf,.docx"
+                            onChange={handleFileSelect}
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          />
+                          <FileText className={`h-12 w-12 mx-auto mb-4 ${isDragging ? 'text-primary' : 'text-muted-foreground'}`} />
+                          <p className="font-medium mb-1">
+                            Drag & drop resume (PDF, DOCX) or{' '}
+                            <span className="text-primary underline cursor-pointer">browse</span>
+                          </p>
+                        </div>
+                      )}
 
-          {/* Results */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                Prediction Results
-                {(loading || compareLoading) && <Loader2 className="h-4 w-4 animate-spin" />}
-              </CardTitle>
-              <CardDescription className="flex items-center justify-between">
-                <span>{result ? 'Salary estimate based on your profile' : 'Results update in real-time'}</span>
-                {result && !compareMode && (
-                  <button
-                    onClick={enableCompareMode}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
-                  >
-                    <GitCompare className="h-3 w-3" />
-                    Compare
-                  </button>
+                      {uploadedFile && (
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border">
+                            <div className="flex items-center gap-3">
+                              <FileText className="h-5 w-5 text-primary" />
+                              <div>
+                                <p className="font-medium text-sm">{uploadedFile.name}</p>
+                                {parseMessage && (
+                                  <p className="text-xs text-muted-foreground">{parseMessage}</p>
+                                )}
+                              </div>
+                            </div>
+                            <button onClick={clearFile} className="p-1 hover:bg-secondary rounded">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </div>
+
+                          {parsing && (
+                            <div className="flex items-center justify-center gap-2 py-4">
+                              <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                              <span className="text-sm">Analyzing resume...</span>
+                            </div>
+                          )}
+
+                          {!parsing && renderFormFields()}
+                        </div>
+                      )}
+
+                      <p className="text-xs text-muted-foreground text-center mt-4">
+                        Privacy First: Resumes processed instantly, never stored.
+                      </p>
+                    </TabsContent>
+
+                    <TabsContent value="manual" className="mt-0">
+                      {renderFormFields()}
+                    </TabsContent>
+                  </div>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Results Card */}
+            <Card className="bg-gradient-card border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xl flex items-center gap-2">
+                  Prediction Results {result ? '' : '(Preview)'}
+                  {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-red-500 mb-4">
+                    {error}
+                  </div>
                 )}
-                {compareMode && (
-                  <button
-                    onClick={() => { setCompareMode(false); setCompareResult(null) }}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
-                  >
-                    <X className="h-3 w-3" />
-                    Exit Compare
-                  </button>
-                )}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {error && (
-                <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4 text-red-500">
-                  {error}
-                </div>
-              )}
 
-              {!result && !error && (
-                <div className="text-center py-12 text-muted-foreground">
-                  {inputMode === 'upload' && !uploadedFile
-                    ? 'Upload a resume to see salary predictions'
-                    : 'Enter job details to see predictions'}
-                </div>
-              )}
-
-              {result && !compareMode && (
-                <div className="space-y-6">
-                  {/* Main Prediction */}
-                  <div className="text-center py-6 rounded-lg bg-primary/5 border">
-                    <p className="text-sm text-muted-foreground mb-1">Predicted Salary</p>
-                    <p className="text-4xl font-bold text-primary">
-                      {formatSalary(result.predicted_salary)}
-                    </p>
-                  </div>
-
-                  {/* Range */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="p-4 rounded-lg bg-secondary/50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <TrendingDown className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">Low (90% CI)</span>
-                      </div>
-                      <p className="text-xl font-semibold">
-                        {formatSalary(result.salary_low)}
-                      </p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-secondary/50 text-center">
-                      <div className="flex items-center justify-center gap-1 mb-1">
-                        <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">High (90% CI)</span>
-                      </div>
-                      <p className="text-xl font-semibold">
-                        {formatSalary(result.salary_high)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Summary */}
-                  <div className="pt-4 border-t space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Job Title</span>
-                      <span className="font-medium">{jobTitle}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Location</span>
-                      <span className="font-medium">{location}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Experience</span>
-                      <span className="font-medium">{experience} years</span>
-                    </div>
-                    {company && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Company</span>
-                        <span className="font-medium">{company}</span>
-                      </div>
-                    )}
-                    {selectedSkills.length > 0 && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Skills</span>
-                        <span className="font-medium text-right">{selectedSkills.join(', ')}</span>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Comparison Mode */}
-              {result && compareMode && (
-                <div className="space-y-6">
-                  {/* Side by Side Comparison */}
-                  <div className="grid grid-cols-2 gap-4">
-                    {/* Current */}
-                    <div className="text-center py-4 rounded-lg bg-primary/5 border">
-                      <p className="text-xs text-muted-foreground mb-1">Current ({location})</p>
-                      <p className="text-2xl font-bold text-primary">
-                        {formatSalary(result.predicted_salary)}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{experience} yrs exp</p>
-                    </div>
-                    {/* Comparison */}
-                    <div className="text-center py-4 rounded-lg bg-secondary/50 border">
-                      <p className="text-xs text-muted-foreground mb-1">Compare ({compareLocation})</p>
-                      <p className="text-2xl font-bold">
-                        {compareResult ? formatSalary(compareResult.predicted_salary) : '...'}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1">{compareExperience} yrs exp</p>
-                    </div>
-                  </div>
-
-                  {/* Difference */}
-                  {compareResult && (
-                    <div className="text-center py-3 rounded-lg border bg-background">
-                      <div className="flex items-center justify-center gap-2">
-                        <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                        <span className={`text-lg font-bold ${
-                          compareResult.predicted_salary > result.predicted_salary
-                            ? 'text-green-500'
-                            : compareResult.predicted_salary < result.predicted_salary
-                            ? 'text-red-500'
-                            : 'text-muted-foreground'
-                        }`}>
-                          {compareResult.predicted_salary >= result.predicted_salary ? '+' : ''}
-                          {formatSalary(compareResult.predicted_salary - result.predicted_salary)}
-                        </span>
-                        <span className="text-sm text-muted-foreground">
-                          ({compareResult.predicted_salary >= result.predicted_salary ? '+' : ''}
-                          {((compareResult.predicted_salary - result.predicted_salary) / result.predicted_salary * 100).toFixed(1)}%)
-                        </span>
-                      </div>
+                {/* Bell Curve Visualization */}
+                <div className="h-48 mb-4">
+                  {bellCurveData ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={bellCurveData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                        <defs>
+                          <linearGradient id="colorDensity" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="hsl(174, 72%, 56%)" stopOpacity={0.4}/>
+                            <stop offset="95%" stopColor="hsl(174, 72%, 56%)" stopOpacity={0.1}/>
+                          </linearGradient>
+                        </defs>
+                        <XAxis
+                          dataKey="salary"
+                          tickFormatter={(v) => `$${Math.round(v/1000)}k`}
+                          stroke="hsl(200, 15%, 40%)"
+                          fontSize={11}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis hide />
+                        <ReferenceLine
+                          x={result.predicted_salary}
+                          stroke="hsl(174, 72%, 56%)"
+                          strokeWidth={2}
+                          label={{
+                            value: formatSalary(result.predicted_salary),
+                            position: 'top',
+                            fill: 'hsl(174, 72%, 56%)',
+                            fontSize: 14,
+                            fontWeight: 'bold'
+                          }}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="density"
+                          stroke="hsl(174, 72%, 56%)"
+                          strokeWidth={2}
+                          fill="url(#colorDensity)"
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={generateBellCurve(100000, 145000, 190000)} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                          <defs>
+                            <linearGradient id="colorDensityPreview" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="hsl(200, 15%, 40%)" stopOpacity={0.2}/>
+                              <stop offset="95%" stopColor="hsl(200, 15%, 40%)" stopOpacity={0.05}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis
+                            dataKey="salary"
+                            tickFormatter={(v) => `$${Math.round(v/1000)}k`}
+                            stroke="hsl(200, 15%, 30%)"
+                            fontSize={11}
+                            tickLine={false}
+                            axisLine={false}
+                          />
+                          <YAxis hide />
+                          <ReferenceLine
+                            x={145000}
+                            stroke="hsl(200, 15%, 30%)"
+                            strokeWidth={1}
+                            strokeDasharray="3 3"
+                            label={{
+                              value: '90% Confidence Interval',
+                              position: 'top',
+                              fill: 'hsl(200, 15%, 40%)',
+                              fontSize: 11
+                            }}
+                          />
+                          <Area
+                            type="monotone"
+                            dataKey="density"
+                            stroke="hsl(200, 15%, 30%)"
+                            strokeWidth={1}
+                            fill="url(#colorDensityPreview)"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
                     </div>
                   )}
+                </div>
 
-                  {/* Comparison Controls */}
-                  <div className="space-y-4 pt-4 border-t">
-                    <p className="text-sm font-medium">Adjust Comparison Scenario</p>
-
-                    {/* Compare Location */}
-                    <div className="space-y-2">
-                      <label className="text-sm flex items-center gap-2">
-                        <MapPin className="h-3 w-3" />
-                        Location
-                      </label>
-                      <Select value={compareLocation} onChange={(e) => setCompareLocation(e.target.value)}>
-                        {options?.locations.map((loc) => (
-                          <option key={loc.code} value={loc.code}>{loc.name} ({loc.code})</option>
-                        )) || <option value="NY">New York (NY)</option>}
-                      </Select>
-                    </div>
-
-                    {/* Compare Experience */}
-                    <div className="space-y-2">
-                      <label className="text-sm flex items-center gap-2">
-                        <Clock className="h-3 w-3" />
-                        Experience
-                      </label>
-                      <Slider
-                        min={0}
-                        max={20}
-                        value={compareExperience}
-                        onChange={(e) => setCompareExperience(Number(e.target.value))}
-                        label={`${compareExperience} years`}
-                      />
-                    </div>
-
-                    {/* Compare Skills */}
-                    <div className="space-y-2">
-                      <label className="text-sm flex items-center gap-2">
-                        <Code className="h-3 w-3" />
-                        Skills
-                      </label>
-                      <div className="flex flex-wrap gap-1">
-                        {(options?.skills || ['Python', 'Machine Learning', 'Deep Learning']).slice(0, 8).map((skill) => (
-                          <button
-                            key={skill}
-                            onClick={() => toggleCompareSkill(skill)}
-                            className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                              compareSkills.includes(skill)
-                                ? 'bg-primary text-primary-foreground border-primary'
-                                : 'bg-background border-input hover:bg-accent'
-                            }`}
-                          >
-                            {skill}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                {/* X-Axis Labels */}
+                <div className="flex justify-between text-xs px-4 mb-6">
+                  <div className="text-center">
+                    <span className="text-muted-foreground">Low</span>
+                    {result && <p className="font-medium text-foreground">{formatSalary(result.salary_low)}</p>}
+                  </div>
+                  <div className="text-center">
+                    <span className="text-muted-foreground">Median</span>
+                    {result && <p className="font-medium text-primary">{formatSalary(result.predicted_salary)}</p>}
+                  </div>
+                  <div className="text-center">
+                    <span className="text-muted-foreground">High</span>
+                    {result && <p className="font-medium text-foreground">{formatSalary(result.salary_high)}</p>}
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
-        {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground">
-          <p>Data sources: H1B filings, BLS statistics, job postings</p>
-          <p className="mt-1">Built with React, Vite, and Tailwind CSS</p>
-        </footer>
-      </main>
+                {/* Insights */}
+                <div className="space-y-3">
+                  {result && result.top_factors && result.top_factors.length > 0 ? (
+                    // Dynamic factors from API
+                    <>
+                      {result.top_factors.map((factor, index) => (
+                        <div key={index} className="flex items-start gap-3 text-sm">
+                          {factor.impact === 'positive' ? (
+                            <TrendingUp className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4 text-red-500 mt-0.5 flex-shrink-0 rotate-180" />
+                          )}
+                          <span>
+                            <strong className={factor.impact === 'positive' ? 'text-green-500' : 'text-red-500'}>
+                              {factor.impact === 'positive' ? '+' : '-'}{factor.name}:
+                            </strong>{' '}
+                            {factor.description}
+                          </span>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    // Placeholder when no result
+                    <>
+                      <div className="flex items-start gap-3 text-sm">
+                        <TrendingUp className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-muted-foreground">
+                          <strong>Top Factors:</strong> [+Experience], [+Location], [-Missing Skill]
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-3 text-sm">
+                        <MapPinned className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-muted-foreground">
+                          <strong>Location Insight:</strong> Compare to other tech hubs
+                        </span>
+                      </div>
+                      <div className="flex items-start gap-3 text-sm">
+                        <Sparkles className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                        <span className="text-muted-foreground">
+                          <strong>Skill Gap:</strong> Add [Skill X] for potential increase
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Footer */}
+          <footer className="text-center mt-12 text-sm text-muted-foreground">
+            <p>
+              Data Sources:{' '}
+              <span className="text-foreground/70">H1B</span>,{' '}
+              <span className="text-foreground/70">BLS</span>,{' '}
+              <span className="text-foreground/70">Postings</span>
+            </p>
+          </footer>
+        </main>
+      </div>
     </div>
   )
+
+  function renderFormFields() {
+    return (
+      <div className="space-y-4">
+        {/* Job Title */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Briefcase className="h-4 w-4" />
+            Job Title
+          </label>
+          <Select value={jobTitle} onChange={(e) => setJobTitle(e.target.value)}>
+            {options?.job_titles.map((title) => (
+              <option key={title} value={title}>{title}</option>
+            )) || <option value="ML Engineer">ML Engineer</option>}
+          </Select>
+        </div>
+
+        {/* Location */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <MapPin className="h-4 w-4" />
+            Location
+          </label>
+          <Select value={location} onChange={(e) => setLocation(e.target.value)}>
+            {options?.locations.map((loc) => (
+              <option key={loc.code} value={loc.code}>{loc.name} ({loc.code})</option>
+            )) || <option value="CA">California (CA)</option>}
+          </Select>
+        </div>
+
+        {/* Experience */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Years of Experience
+          </label>
+          <Slider
+            min={0}
+            max={20}
+            value={experience}
+            onChange={(e) => setExperience(Number(e.target.value))}
+            label={`${experience} years`}
+          />
+        </div>
+
+        {/* Company */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Building2 className="h-4 w-4" />
+            Company <span className="text-muted-foreground">(optional)</span>
+          </label>
+          <Input
+            value={company}
+            onChange={(e) => setCompany(e.target.value)}
+            placeholder="e.g., Google, Meta, OpenAI"
+          />
+        </div>
+
+        {/* Skills */}
+        <div className="space-y-2">
+          <label className="text-sm font-medium flex items-center gap-2">
+            <Code className="h-4 w-4" />
+            Skills
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {(options?.skills || ['Python', 'Machine Learning', 'Deep Learning', 'PyTorch', 'TensorFlow']).map((skill) => (
+              <button
+                key={skill}
+                onClick={() => toggleSkill(skill)}
+                className={`px-3 py-1 text-sm rounded-full border transition-colors ${
+                  selectedSkills.includes(skill)
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-input hover:bg-accent hover:text-accent-foreground'
+                }`}
+              >
+                {skill}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
 }
