@@ -25,7 +25,15 @@ In Cloudflare Zero Trust dashboard:
 |---------|-------|
 | Subdomain | `aisalary` |
 | Domain | your domain |
-| Service | `HTTP://localhost:8501` |
+| Service | `HTTP://localhost:8000` |
+
+#### 2b. Configure MLflow Hostname (Optional)
+
+| Setting | Value |
+|---------|-------|
+| Subdomain | `mlflow-aisalary` |
+| Domain | your domain |
+| Service | `HTTP://localhost:5000` |
 
 #### 3. Add GitHub Secrets
 
@@ -118,3 +126,24 @@ Trust policy:
 
 - **Name**: `AWS_ROLE_ARN`
 - **Value**: `arn:aws:iam::ACCOUNT_ID:role/ROLE_NAME`
+
+---
+
+## MLflow Service Setup
+
+To run MLflow UI as a persistent service:
+
+```bash
+# Copy service file
+sudo cp deploy/mlflow.service /etc/systemd/system/
+
+# Enable and start
+sudo systemctl daemon-reload
+sudo systemctl enable mlflow
+sudo systemctl start mlflow
+
+# Check status
+sudo systemctl status mlflow
+```
+
+Access at: `https://mlflow-aisalary.your-domain.com`
