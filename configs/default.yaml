@@ -10,9 +10,6 @@ data_collection:
   bls_start_year: 2020
   bls_end_year: 2024
 
-  # Google Trends timeframe
-  trends_timeframe: "today 5-y"
-
   # Rate limiting (seconds between API calls)
   rate_limit_delay: 2
 

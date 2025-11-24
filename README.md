@@ -56,10 +56,13 @@ MLflow is used for experiment tracking during model training.
 ```bash
 make install           # Install Python dependencies
 make frontend-install  # Install frontend dependencies
-make pipeline          # Collect data, merge, train
-make api               # Start API (port 8000)
+make pipeline          # Collect data, merge, and train model
+make api               # Start FastAPI server (port 8000)
 make frontend          # Start React dev server (port 5173)
 ```
+
+To train just the model: `make train`
+To test API locally: `curl http://localhost:8000/api/health`
 
 ## Tech Stack
 
@@ -69,8 +72,9 @@ make frontend          # Start React dev server (port 5173)
 | API | FastAPI, Pydantic |
 | Frontend | React, Vite, Tailwind CSS |
 | Tracking | MLFlow |
-| Storage | AWS S3 |
-| Hosting | GitHub Actions + Cloudflare Tunnel |
+| Cloud Storage | AWS S3 (data hosting) |
+| Cloud Deployment | Cloudflare Tunnel (API + frontend) |
+| CI/CD | GitHub Actions |
 
 ## Project Structure
 
@@ -78,8 +82,9 @@ make frontend          # Start React dev server (port 5173)
 src/                  # ML pipeline (collectors, processing, models)
 api/                  # FastAPI endpoints
 frontend-react/       # React frontend
-config.yaml           # Pipeline configuration
-Makefile              # Commands
+configs/              # YAML configuration files
+config.yaml           # Main pipeline configuration
+Makefile              # Build commands
 Dockerfile            # Container build
 ```
 
@@ -106,6 +111,23 @@ curl https://aisalary.neevs.io/api/options
 - **Role coverage:** Limited to AI/ML titles; doesn't cover adjacent roles well
 - **Temporal lag:** H1B filings reflect offers made 6-12 months prior
 - **Company representation:** Large tech companies overrepresented vs. startups
+
+## Acknowledgments
+
+**AI Assistants:**
+- Claude Code (Anthropic) - code development and documentation
+- Gemini 3 Pro Image / Nano Banana Pro (Google) - visual design
+
+**Data Sources:**
+- [U.S. Department of Labor](https://www.dol.gov/agencies/eta/foreign-labor/performance) - H1B visa data
+- [Bureau of Labor Statistics](https://www.bls.gov/oes/) - wage statistics
+- [Adzuna](https://developer.adzuna.com/) - job postings
+
+## Authors
+
+Jonas De Oliveira Neves & Omkar Sreekanth
+
+Duke University - AIPI 510, 2025
 
 ## License
 

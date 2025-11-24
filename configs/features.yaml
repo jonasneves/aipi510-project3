@@ -1,0 +1,162 @@
+# Feature Engineering Configuration
+
+skill_categories:
+  deep_learning:
+    - pytorch
+    - tensorflow
+    - keras
+    - deep learning
+    - neural network
+  nlp:
+    - nlp
+    - natural language
+    - bert
+    - gpt
+    - transformer
+    - llm
+    - langchain
+    - huggingface
+  computer_vision:
+    - computer vision
+    - opencv
+    - image recognition
+    - object detection
+    - yolo
+  mlops:
+    - mlops
+    - kubeflow
+    - mlflow
+    - airflow
+    - docker
+    - kubernetes
+  cloud_ml:
+    - sagemaker
+    - vertex ai
+    - azure ml
+    - databricks
+    - aws
+    - gcp
+    - azure
+  big_data:
+    - spark
+    - hadoop
+    - kafka
+    - flink
+    - distributed
+  traditional_ml:
+    - scikit-learn
+    - xgboost
+    - random forest
+    - regression
+    - classification
+  data_engineering:
+    - sql
+    - etl
+    - data pipeline
+    - data warehouse
+    - snowflake
+
+# Company tier classifications (impacts compensation)
+company_tiers:
+  faang:
+    - google
+    - meta
+    - amazon
+    - apple
+    - netflix
+    - microsoft
+    - alphabet
+  tier1:
+    - openai
+    - anthropic
+    - deepmind
+    - nvidia
+    - tesla
+    - salesforce
+    - uber
+    - airbnb
+    - stripe
+  tier2:
+    - linkedin
+    - twitter
+    - snap
+    - lyft
+    - pinterest
+    - doordash
+    - instacart
+    - coinbase
+  finance:
+    - citadel
+    - two sigma
+    - jane street
+    - de shaw
+    - goldman
+    - morgan stanley
+    - jpmorgan
+
+# Location cost-of-living multipliers (relative to national average)
+location_multipliers:
+  CA: 1.35  # California
+  NY: 1.30  # New York
+  WA: 1.20  # Washington
+  MA: 1.25  # Massachusetts
+  CO: 1.10  # Colorado
+  TX: 1.00  # Texas
+  IL: 1.05  # Illinois
+  GA: 0.95  # Georgia
+  NC: 0.90  # North Carolina
+  FL: 1.00  # Florida
+  PA: 1.00  # Pennsylvania
+  VA: 1.10  # Virginia
+  AZ: 0.95  # Arizona
+  OR: 1.10  # Oregon
+  MD: 1.15  # Maryland
+
+# Tech hub classifications
+tech_hubs:
+  major:
+    - CA
+    - WA
+    - NY
+  secondary:
+    - MA
+    - CO
+    - TX
+    - IL
+    - GA
+  remote_friendly:
+    - CO
+    - TX
+    - FL
+    - AZ
+
+encodings:
+  state_index:
+    CA: 0
+    NY: 1
+    WA: 2
+    TX: 3
+    MA: 4
+    CO: 5
+    IL: 6
+    GA: 7
+    NC: 8
+    FL: 9
+    PA: 10
+    VA: 11
+    AZ: 12
+    OR: 13
+    MD: 14
+    NJ: 15
+    OH: 16
+    MI: 17
+    MN: 18
+    UT: 19
+  tier_index:
+    faang: 0
+    tier1: 1
+    tier2: 2
+    finance: 3
+    startup: 4
+    other: 5
+    unknown: 6

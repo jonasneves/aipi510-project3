@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from src.models import SalaryPredictor
 from src.processing import FeatureEngineer
+from src.utils.config_loader import ConfigLoader
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,56 +27,26 @@ logger = logging.getLogger(__name__)
 # Create router for API endpoints (will be mounted at /api)
 router = APIRouter()
 
-# Resume parsing utilities
+# Load patterns and config
+_patterns_config = ConfigLoader.get_patterns()
+_features_config = ConfigLoader.get_features()
+
 JOB_TITLE_PATTERNS = [
-    (r"\b(principal|staff|lead)\s+(ml|machine learning|ai|data)\s+(engineer|scientist)\b", "Principal ML Engineer"),
-    (r"\b(senior|sr\.?)\s+(ml|machine learning)\s+engineer\b", "Senior ML Engineer"),
-    (r"\b(senior|sr\.?)\s+data\s+scientist\b", "Senior Data Scientist"),
-    (r"\b(senior|sr\.?)\s+ai\s+engineer\b", "Senior AI Engineer"),
-    (r"\b(senior|sr\.?)\s+research\s+scientist\b", "Senior Research Scientist"),
-    (r"\b(senior|sr\.?)\s+data\s+engineer\b", "Senior Data Engineer"),
-    (r"\bmlops\s+engineer\b", "MLOps Engineer"),
-    (r"\b(ml|machine learning)\s+engineer\b", "ML Engineer"),
-    (r"\bdata\s+scientist\b", "Data Scientist"),
-    (r"\bai\s+engineer\b", "AI Engineer"),
-    (r"\bresearch\s+scientist\b", "Research Scientist"),
-    (r"\bapplied\s+scientist\b", "Applied Scientist"),
-    (r"\bdata\s+engineer\b", "Data Engineer"),
-    (r"\b(director|head)\s+of\s+(ml|ai|machine learning)\b", "Director of ML"),
-    (r"\bvp\s+of\s+(ai|ml)\b", "VP of AI"),
-    (r"\b(ai|ml|machine learning)\s+manager\b", "AI/ML Manager"),
+    (item["pattern"], item["display"])
+    for item in _patterns_config["job_title_patterns"]
 ]
+SKILL_PATTERNS = _patterns_config["skill_patterns"]
+STATE_PATTERNS = _patterns_config["state_patterns"]
 
-SKILL_PATTERNS = {
-    "Python": r"\bpython\b",
-    "Machine Learning": r"\b(machine learning|ml)\b",
-    "Deep Learning": r"\b(deep learning|dl)\b",
-    "PyTorch": r"\bpytorch\b",
-    "TensorFlow": r"\b(tensorflow|tf)\b",
-    "NLP": r"\b(nlp|natural language processing)\b",
-    "Computer Vision": r"\b(computer vision|cv|image processing)\b",
-    "MLOps": r"\bmlops\b",
-    "Kubernetes": r"\b(kubernetes|k8s)\b",
-    "AWS": r"\b(aws|amazon web services)\b",
-    "GCP": r"\b(gcp|google cloud)\b",
-    "SQL": r"\bsql\b",
-    "Spark": r"\b(spark|pyspark)\b",
-    "LLMs": r"\b(llm|large language model|gpt|chatgpt)\b",
-    "Transformers": r"\b(transformers|bert|attention)\b",
-}
+_salary_factors = _patterns_config["salary_factors"]
+HIGH_PAY_STATES = _salary_factors["high_pay_states"]
+LOW_PAY_STATES = _salary_factors["low_pay_states"]
+HIGH_VALUE_SKILLS = _salary_factors["high_value_skills"]
+SENIOR_KEYWORDS = _salary_factors["senior_keywords"]
 
-STATE_PATTERNS = {
-    "CA": r"\b(california|ca|san francisco|los angeles|san diego|san jose|palo alto|mountain view)\b",
-    "NY": r"\b(new york|ny|nyc|manhattan|brooklyn)\b",
-    "WA": r"\b(washington|wa|seattle|redmond|bellevue)\b",
-    "TX": r"\b(texas|tx|austin|dallas|houston)\b",
-    "MA": r"\b(massachusetts|ma|boston|cambridge)\b",
-    "CO": r"\b(colorado|co|denver|boulder)\b",
-    "IL": r"\b(illinois|il|chicago)\b",
-    "GA": r"\b(georgia|ga|atlanta)\b",
-    "NC": r"\b(north carolina|nc|charlotte|raleigh|durham)\b",
-    "FL": r"\b(florida|fl|miami|tampa|orlando)\b",
-}
+_encodings = _features_config["encodings"]
+STATE_INDEX = _encodings["state_index"]
+TIER_INDEX = _encodings["tier_index"]
 
 
 def extract_text_from_pdf(content: bytes) -> str:
@@ -262,16 +233,8 @@ def prepare_features(input_data: SalaryInput) -> pd.DataFrame:
     # Instead, manually create state encoding based on known states
     state = input_data.location.upper()
 
-    # State index mapping (consistent across predictions)
-    STATE_INDEX = {
-        "CA": 0, "NY": 1, "WA": 2, "TX": 3, "MA": 4, "CO": 5, "IL": 6,
-        "GA": 7, "NC": 8, "FL": 9, "PA": 10, "VA": 11, "AZ": 12, "OR": 13,
-        "MD": 14, "NJ": 15, "OH": 16, "MI": 17, "MN": 18, "UT": 19,
-    }
     data["state_clean_encoded"] = STATE_INDEX.get(state, 20)
 
-    # Company tier encoding
-    TIER_INDEX = {"faang": 0, "tier1": 1, "tier2": 2, "finance": 3, "startup": 4, "other": 5, "unknown": 6}
     company_tier = data["company_tier"].iloc[0] if "company_tier" in data.columns else "unknown"
     data["company_tier_encoded"] = TIER_INDEX.get(company_tier, 6)
 
@@ -470,16 +433,14 @@ def calculate_top_factors(input_data: SalaryInput, X: pd.DataFrame) -> list[Feat
                 description=f"{input_data.experience_years} years (entry level)"
             ))
 
-    # Location - high-paying states
-    high_pay_states = ["CA", "NY", "WA", "MA"]
-    low_pay_states = ["FL", "TX", "GA", "NC"]
-    if input_data.location.upper() in high_pay_states:
+    # Location
+    if input_data.location.upper() in HIGH_PAY_STATES:
         factors.append(FeatureFactor(
             name="Location",
             impact="positive",
             description=f"{input_data.location} (high-paying market)"
         ))
-    elif input_data.location.upper() in low_pay_states:
+    elif input_data.location.upper() in LOW_PAY_STATES:
         factors.append(FeatureFactor(
             name="Location",
             impact="negative",
@@ -488,7 +449,7 @@ def calculate_top_factors(input_data: SalaryInput, X: pd.DataFrame) -> list[Feat
 
     # Job title seniority
     title_lower = input_data.job_title.lower()
-    if any(x in title_lower for x in ["principal", "staff", "director", "vp"]):
+    if any(x in title_lower for x in SENIOR_KEYWORDS):
         factors.append(FeatureFactor(
             name="Seniority",
             impact="positive",
@@ -507,11 +468,10 @@ def calculate_top_factors(input_data: SalaryInput, X: pd.DataFrame) -> list[Feat
             description="Entry/Mid level title"
         ))
 
-    # Skills - check for high-value skills
-    high_value_skills = ["LLMs", "Kubernetes", "MLOps", "Deep Learning", "PyTorch"]
+    # Skills
     if input_data.skills:
         skills_upper = [s.lower() for s in input_data.skills]
-        has_high_value = [s for s in high_value_skills if s.lower() in skills_upper]
+        has_high_value = [s for s in HIGH_VALUE_SKILLS if s.lower() in skills_upper]
         if has_high_value:
             factors.append(FeatureFactor(
                 name="Skills",
@@ -520,7 +480,7 @@ def calculate_top_factors(input_data: SalaryInput, X: pd.DataFrame) -> list[Feat
             ))
 
         # Check for missing high-value skills
-        missing_skills = [s for s in high_value_skills[:3] if s.lower() not in skills_upper]
+        missing_skills = [s for s in HIGH_VALUE_SKILLS[:3] if s.lower() not in skills_upper]
         if missing_skills and len(factors) < 4:
             factors.append(FeatureFactor(
                 name="Missing Skills",
