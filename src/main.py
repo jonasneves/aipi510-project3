@@ -48,6 +48,8 @@ def collect_data(args):
             df = bls.collect(start_year=args.start_year or 2022, end_year=2024)
             if not df.empty:
                 print(f"  Collected {len(df)} BLS records")
+            else:
+                print("  Warning: No BLS data collected (check API key or series IDs)")
         except Exception as e:
             print(f"  Error collecting BLS data: {e}")
 
