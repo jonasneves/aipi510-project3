@@ -92,18 +92,52 @@ jobs:
           ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
         run: python -m src.main collect --source all
 
+      # Fallback: Download missing files from S3 cache
+      - name: Fallback to S3 cache for missing files
+        if: steps.check-cache.outputs.source == 'api' && github.event_name != 'pull_request'
+        run: |
+          echo "Checking for missing data files..."
+          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet"
+          MISSING_FILES=""
+
+          for file in $EXPECTED_FILES; do
+            if [ ! -f "data/raw/$file" ]; then
+              echo "  Missing: $file"
+              MISSING_FILES="$MISSING_FILES $file"
+            fi
+          done
+
+          if [ -n "$MISSING_FILES" ]; then
+            echo "Attempting to download missing files from S3 cache..."
+            for file in $MISSING_FILES; do
+              if aws s3 cp s3://${{ env.S3_BUCKET }}/data/raw/$file data/raw/$file 2>/dev/null; then
+                echo "  ✓ Recovered $file from S3 cache"
+                echo "CACHE_FALLBACK_$file=true" >> $GITHUB_ENV
+              else
+                echo "  ✗ Could not recover $file from S3"
+              fi
+            done
+          else
+            echo "All expected files present - no fallback needed"
+          fi
+
       - name: Summary
         run: |
           echo "## Data Collection" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Source:** ${{ steps.check-cache.outputs.source }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Source | Records |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Source | Records | Origin |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|---------|--------|" >> $GITHUB_STEP_SUMMARY
           for f in data/raw/*.parquet; do
             name=$(basename "$f" .parquet)
             count=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))" 2>/dev/null || echo "0")
-            echo "| $name | $count |" >> $GITHUB_STEP_SUMMARY
+            # Check if this file was recovered from cache fallback
+            origin="${{ steps.check-cache.outputs.source }}"
+            if [ "$origin" = "api" ] && [ -n "${!CACHE_FALLBACK_${f}}" ]; then
+              origin="s3-fallback"
+            fi
+            echo "| $name | $count | $origin |" >> $GITHUB_STEP_SUMMARY
           done
 
       - uses: actions/upload-artifact@v4
