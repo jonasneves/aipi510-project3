@@ -201,6 +201,14 @@ class SalaryInput(BaseModel):
         }
 
 
+class FeatureFactor(BaseModel):
+    """A single feature factor affecting salary."""
+
+    name: str
+    impact: str  # "positive" or "negative"
+    description: str
+
+
 class SalaryResponse(BaseModel):
     """Response model for salary predictions."""
 
@@ -208,6 +216,14 @@ class SalaryResponse(BaseModel):
     salary_low: int
     salary_high: int
     confidence_level: str
+    top_factors: list[FeatureFactor] = []
+
+
+class FeatureImportanceResponse(BaseModel):
+    """Response model for feature importance."""
+
+    features: list[dict]
+    total_features: int
 
 
 class BatchSalaryRequest(BaseModel):
@@ -363,6 +379,169 @@ async def model_info():
     }
 
 
+@router.get("/feature-importance", response_model=FeatureImportanceResponse)
+async def get_feature_importance(top_n: int = 20):
+    """Get global feature importance from the model."""
+    if predictor is None:
+        raise HTTPException(status_code=503, detail="Model not loaded")
+
+    if predictor.feature_importance is None:
+        raise HTTPException(status_code=503, detail="Feature importance not available")
+
+    # Sort features by importance
+    sorted_features = sorted(
+        predictor.feature_importance.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )[:top_n]
+
+    # Format feature names for display
+    features = []
+    for name, importance in sorted_features:
+        display_name = format_feature_name(name)
+        features.append({
+            "name": name,
+            "display_name": display_name,
+            "importance": round(importance, 4),
+            "importance_pct": round(importance * 100, 2)
+        })
+
+    return FeatureImportanceResponse(
+        features=features,
+        total_features=len(predictor.feature_names)
+    )
+
+
+def format_feature_name(name: str) -> str:
+    """Format internal feature name to human-readable display name."""
+    # Handle common patterns
+    if name == "estimated_yoe":
+        return "Years of Experience"
+    if name == "state_clean_encoded":
+        return "Location (State)"
+    if name == "company_tier_encoded":
+        return "Company Tier"
+    if name.startswith("skill_"):
+        skill = name.replace("skill_", "").replace("_", " ").title()
+        return f"Skill: {skill}"
+    if name.startswith("title_"):
+        return "Job Title Level"
+    if name == "is_senior":
+        return "Senior Level"
+    if name == "is_staff_principal":
+        return "Staff/Principal Level"
+    if name == "is_manager_director":
+        return "Manager/Director Level"
+
+    # Default: clean up underscores and title case
+    return name.replace("_", " ").title()
+
+
+def calculate_top_factors(input_data: SalaryInput, X: pd.DataFrame) -> list[FeatureFactor]:
+    """Calculate top factors affecting this specific prediction."""
+    if predictor is None or predictor.feature_importance is None:
+        return []
+
+    factors = []
+
+    # Get top important features from model
+    sorted_importance = sorted(
+        predictor.feature_importance.items(),
+        key=lambda x: x[1],
+        reverse=True
+    )
+
+    # Map user inputs to features and their importance
+    # Experience
+    if "estimated_yoe" in predictor.feature_importance:
+        exp_importance = predictor.feature_importance["estimated_yoe"]
+        if input_data.experience_years >= 7:
+            factors.append(FeatureFactor(
+                name="Experience",
+                impact="positive",
+                description=f"{input_data.experience_years} years (senior level)"
+            ))
+        elif input_data.experience_years >= 4:
+            factors.append(FeatureFactor(
+                name="Experience",
+                impact="positive",
+                description=f"{input_data.experience_years} years (mid level)"
+            ))
+        elif input_data.experience_years <= 2:
+            factors.append(FeatureFactor(
+                name="Experience",
+                impact="negative",
+                description=f"{input_data.experience_years} years (entry level)"
+            ))
+
+    # Location - high-paying states
+    high_pay_states = ["CA", "NY", "WA", "MA"]
+    low_pay_states = ["FL", "TX", "GA", "NC"]
+    if input_data.location.upper() in high_pay_states:
+        factors.append(FeatureFactor(
+            name="Location",
+            impact="positive",
+            description=f"{input_data.location} (high-paying market)"
+        ))
+    elif input_data.location.upper() in low_pay_states:
+        factors.append(FeatureFactor(
+            name="Location",
+            impact="negative",
+            description=f"{input_data.location} (lower cost market)"
+        ))
+
+    # Job title seniority
+    title_lower = input_data.job_title.lower()
+    if any(x in title_lower for x in ["principal", "staff", "director", "vp"]):
+        factors.append(FeatureFactor(
+            name="Seniority",
+            impact="positive",
+            description="Principal/Staff/Director level"
+        ))
+    elif "senior" in title_lower:
+        factors.append(FeatureFactor(
+            name="Seniority",
+            impact="positive",
+            description="Senior level"
+        ))
+    elif not any(x in title_lower for x in ["senior", "staff", "principal", "lead"]):
+        factors.append(FeatureFactor(
+            name="Seniority",
+            impact="negative",
+            description="Entry/Mid level title"
+        ))
+
+    # Skills - check for high-value skills
+    high_value_skills = ["LLMs", "Kubernetes", "MLOps", "Deep Learning", "PyTorch"]
+    if input_data.skills:
+        skills_upper = [s.lower() for s in input_data.skills]
+        has_high_value = [s for s in high_value_skills if s.lower() in skills_upper]
+        if has_high_value:
+            factors.append(FeatureFactor(
+                name="Skills",
+                impact="positive",
+                description=f"High-value: {', '.join(has_high_value[:3])}"
+            ))
+
+        # Check for missing high-value skills
+        missing_skills = [s for s in high_value_skills[:3] if s.lower() not in skills_upper]
+        if missing_skills and len(factors) < 4:
+            factors.append(FeatureFactor(
+                name="Missing Skills",
+                impact="negative",
+                description=f"Consider adding: {missing_skills[0]}"
+            ))
+    else:
+        factors.append(FeatureFactor(
+            name="Skills",
+            impact="negative",
+            description="No skills specified"
+        ))
+
+    # Limit to top 4 factors
+    return factors[:4]
+
+
 @router.get("/options")
 async def get_options():
     """Get available options for prediction inputs."""
@@ -496,11 +675,15 @@ async def predict(job: SalaryInput):
         X = prepare_features(job)
         result = predictor.predict_with_range(X)
 
+        # Calculate top factors affecting this prediction
+        top_factors = calculate_top_factors(job, X)
+
         return SalaryResponse(
             predicted_salary=int(result["predicted_salary"].iloc[0]),
             salary_low=int(result["salary_low"].iloc[0]),
             salary_high=int(result["salary_high"].iloc[0]),
             confidence_level="90%",
+            top_factors=top_factors,
         )
 
     except Exception as e:
