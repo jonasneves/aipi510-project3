@@ -245,7 +245,7 @@ jobs:
       - name: Upload batch data to S3
         working-directory: linkedin-scraper
         run: |
-          aws s3 sync ./data s3://ai-salary-predictor/data/raw/ \
+          aws s3 sync ./data s3://ai-salary-predictor/linkedin/raw/ \
             --exclude "*" \
             --include "batch-${{ matrix.batch }}-*.jsonl" \
             --storage-class INTELLIGENT_TIERING
@@ -280,7 +280,7 @@ jobs:
         working-directory: linkedin-scraper
         run: |
           mkdir -p ./data
-          aws s3 sync s3://ai-salary-predictor/data/raw/ ./data/ \
+          aws s3 sync s3://ai-salary-predictor/linkedin/raw/ ./data/ \
             --exclude "*" \
             --include "batch-*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl"
 
@@ -296,7 +296,7 @@ jobs:
         run: |
           aws s3 cp \
             ./data/consolidated-${{ needs.generate-matrix.outputs.timestamp }}.jsonl \
-            s3://ai-salary-predictor/consolidated/ \
+            s3://ai-salary-predictor/linkedin/consolidated/ \
             --storage-class INTELLIGENT_TIERING
 
       - name: Create summary

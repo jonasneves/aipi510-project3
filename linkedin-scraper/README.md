@@ -51,12 +51,12 @@ Generate Query Matrix
 
 1. **Collection** (Parallel): Each batch scrapes 2-5 LinkedIn searches
    - Saves to `batch-{N}-{TIMESTAMP}.jsonl`
-   - Uploads to `s3://ai-salary-predictor/data/raw/`
+   - Uploads to `s3://ai-salary-predictor/linkedin/raw/`
 
 2. **Consolidation** (After all batches complete):
    - Downloads all batch files
    - Deduplicates by job_url
-   - Uploads to `s3://ai-salary-predictor/consolidated/`
+   - Uploads to `s3://ai-salary-predictor/linkedin/consolidated/`
 
 3. **ML Pipeline** (Runs at 2 AM UTC):
    - Downloads consolidated file from S3
@@ -170,12 +170,21 @@ Edit `.github/workflows/linkedin-scraper.yml` in the `generate-matrix` step to m
 
 ```
 s3://ai-salary-predictor/
-├── data/raw/
-│   ├── batch-1-2025-11-25T01-00-00Z.jsonl
-│   ├── batch-2-2025-11-25T01-00-00Z.jsonl
-│   └── ...
-├── consolidated/
-│   └── consolidated-2025-11-25T01-00-00Z.jsonl  <- ML pipeline uses this
+├── linkedin/
+│   ├── raw/
+│   │   ├── batch-1-2025-11-25T01-00-00Z.jsonl
+│   │   ├── batch-2-2025-11-25T01-00-00Z.jsonl
+│   │   └── ...
+│   └── consolidated/
+│       └── consolidated-2025-11-25T01-00-00Z.jsonl  <- ML pipeline uses this
+├── data/
+│   ├── raw/
+│   │   ├── parquet/          (ML pipeline output)
+│   │   └── h1b-source/       (H1B Excel files)
+│   └── processed/
+│       └── merged_salary_data.parquet
+├── models/
+│   └── latest/
 └── metadata/
     └── latest-run.json
 ```

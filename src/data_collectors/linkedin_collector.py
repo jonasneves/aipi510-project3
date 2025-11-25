@@ -5,8 +5,8 @@ Collects AI salary data from LinkedIn job postings stored in S3.
 Data is collected by a separate Node.js scraper and uploaded to S3 daily.
 
 S3 Paths:
-- Raw data: s3://ai-salary-predictor/data/raw/
-- Consolidated: s3://ai-salary-predictor/consolidated/
+- Raw data: s3://ai-salary-predictor/linkedin/raw/
+- Consolidated: s3://ai-salary-predictor/linkedin/consolidated/
 """
 
 import json
@@ -332,7 +332,7 @@ class LinkedInJobsCollector:
 
         # List consolidated files
         files = self._list_s3_files(
-            prefix="consolidated/",
+            prefix="linkedin/consolidated/",
             file_pattern=r"consolidated-.*\.jsonl$"
         )
 
@@ -368,7 +368,7 @@ class LinkedInJobsCollector:
 
         # List raw data files
         files = self._list_s3_files(
-            prefix="data/raw/",
+            prefix="linkedin/raw/",
             file_pattern=r"(ai-jobs-|batch-).*\.jsonl$",
             days_back=days_back
         )
