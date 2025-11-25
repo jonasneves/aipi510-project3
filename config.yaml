@@ -22,6 +22,9 @@ sources:
   adzuna:
     results_per_page: 50
     max_pages: 20
+  linkedin:
+    use_consolidated: true
+    days_back: 7
 
 # Model Configuration
 model:

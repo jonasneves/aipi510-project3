@@ -125,6 +125,10 @@ class DataMerger:
         """Load job posting data from Adzuna."""
         return self._load_source("adzuna")
 
+    def load_linkedin_data(self) -> pd.DataFrame:
+        """Load LinkedIn job data."""
+        return self._load_source("linkedin")
+
     def standardize_h1b(self, df: pd.DataFrame) -> pd.DataFrame:
         """Standardize H1B data to common schema."""
         return self._standardize_source(df, "h1b")
@@ -137,6 +141,10 @@ class DataMerger:
         """Standardize job posting data to common schema."""
         return self._standardize_source(df, "adzuna")
 
+    def standardize_linkedin(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Standardize LinkedIn data to common schema."""
+        return self._standardize_source(df, "linkedin")
+
     def _extract_state_from_metro(self, area_code: str) -> str:
         """Extract state from metro area code."""
         return self._metro_to_state.get(str(area_code), "Unknown")
@@ -146,6 +154,7 @@ class DataMerger:
         include_h1b: bool = True,
         include_bls: bool = True,
         include_jobs: bool = True,
+        include_linkedin: bool = True,
     ) -> pd.DataFrame:
         """
         Merge all data sources into unified dataset.
@@ -154,6 +163,7 @@ class DataMerger:
             include_h1b: Include H1B data
             include_bls: Include BLS data
             include_jobs: Include job posting data
+            include_linkedin: Include LinkedIn data
 
         Returns:
             Merged DataFrame
@@ -183,6 +193,14 @@ class DataMerger:
                 jobs_std = self.standardize_job_postings(jobs_df)
                 all_data.append(jobs_std)
                 print(f"  Loaded {len(jobs_std)} job posting records")
+
+        if include_linkedin:
+            print("Loading LinkedIn data...")
+            linkedin_df = self.load_linkedin_data()
+            if not linkedin_df.empty:
+                linkedin_std = self.standardize_linkedin(linkedin_df)
+                all_data.append(linkedin_std)
+                print(f"  Loaded {len(linkedin_std)} LinkedIn records")
 
         if not all_data:
             print("No data sources available!")

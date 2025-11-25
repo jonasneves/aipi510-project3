@@ -26,10 +26,15 @@ def collect_data(args):
         H1BSalaryCollector,
         BLSDataCollector,
         AdzunaJobsCollector,
+        LinkedInJobsCollector,
     )
 
-    if args.source == "all" or args.source == "h1b":
-        print("\n[1/3] Collecting H1B Salary Data...")
+    # Handle source argument (list of sources or None)
+    sources = args.source if args.source else ["all"]
+    should_collect = lambda source: "all" in sources or source in sources
+
+    if should_collect("h1b"):
+        print("\n[1/4] Collecting H1B Salary Data...")
         try:
             h1b = H1BSalaryCollector(data_dir=args.data_dir)
             df = h1b.collect(years=args.years or [2023, 2024])
@@ -41,8 +46,8 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting H1B data: {e}")
 
-    if args.source == "all" or args.source == "bls":
-        print("\n[2/3] Collecting BLS Wage Data...")
+    if should_collect("bls"):
+        print("\n[2/4] Collecting BLS Wage Data...")
         try:
             bls = BLSDataCollector(data_dir=args.data_dir)
             df = bls.collect(start_year=args.start_year or 2022, end_year=2024)
@@ -53,8 +58,8 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting BLS data: {e}")
 
-    if args.source == "all" or args.source == "jobs":
-        print("\n[3/3] Collecting Job Posting Data...")
+    if should_collect("jobs"):
+        print("\n[3/4] Collecting Job Posting Data...")
         try:
             adzuna = AdzunaJobsCollector(data_dir=args.data_dir)
             results = adzuna.collect()
@@ -62,6 +67,19 @@ def collect_data(args):
                 print(f"  Collected {len(results['jobs'])} job postings")
         except Exception as e:
             print(f"  Error collecting job data: {e}")
+
+    if should_collect("linkedin"):
+        print("\n[4/4] Collecting LinkedIn Job Data from S3...")
+        try:
+            linkedin = LinkedInJobsCollector(data_dir=args.data_dir)
+            df = linkedin.collect(use_consolidated=True)
+            if not df.empty:
+                stats = linkedin.get_summary_stats(df)
+                print(f"  Collected {len(df)} LinkedIn records")
+                if stats:
+                    print(f"  Median salary: ${stats.get('median', 0):,.0f}")
+        except Exception as e:
+            print(f"  Error collecting LinkedIn data: {e}")
 
     print("\n" + "=" * 60)
     print("Data collection complete!")
@@ -391,9 +409,9 @@ Examples:
     collect_parser = subparsers.add_parser("collect", help="Collect data from sources")
     collect_parser.add_argument(
         "--source",
-        choices=["all", "h1b", "bls", "jobs"],
-        default="all",
-        help="Data source to collect (default: all)",
+        action="append",
+        choices=["all", "h1b", "bls", "jobs", "linkedin"],
+        help="Data source to collect (can be specified multiple times, default: all)",
     )
     collect_parser.add_argument(
         "--years",

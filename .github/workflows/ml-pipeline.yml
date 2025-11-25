@@ -67,9 +67,10 @@ jobs:
             echo "source=api" >> $GITHUB_OUTPUT
             echo "Force collect enabled - will collect from APIs"
           else
-            # Try to download from S3
-            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/ data/raw/ 2>/dev/null; then
-              # Check if we got any data
+            # Try to download from S3 (parquet files and H1B source files)
+            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/parquet/ data/raw/ --exclude "*" --include "*.parquet" 2>/dev/null && \
+               aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/ data/raw/ --exclude "*" --include "*.xlsx" 2>/dev/null; then
+              # Check if we got any parquet data
               if [ "$(ls -A data/raw/*.parquet 2>/dev/null)" ]; then
                 echo "source=s3" >> $GITHUB_OUTPUT
                 echo "Using cached data from S3"
@@ -90,14 +91,21 @@ jobs:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
-        run: python -m src.main collect --source all
+        run: python -m src.main collect --source h1b --source bls --source jobs
+
+      # Always collect LinkedIn data (reads from S3, not external APIs)
+      - name: Collect LinkedIn data from S3
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Collecting LinkedIn job data from S3..."
+          python -m src.main collect --source linkedin || echo "LinkedIn collection failed, continuing..."
 
       # Fallback: Download missing files from S3 cache
       - name: Fallback to S3 cache for missing files
         if: steps.check-cache.outputs.source == 'api' && github.event_name != 'pull_request'
         run: |
           echo "Checking for missing data files..."
-          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
+          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet linkedin_ai_jobs.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
           MISSING_FILES=""
 
           for file in $EXPECTED_FILES; do
@@ -110,7 +118,16 @@ jobs:
           if [ -n "$MISSING_FILES" ]; then
             echo "Attempting to download missing files from S3 cache..."
             for file in $MISSING_FILES; do
-              if aws s3 cp s3://${{ env.S3_BUCKET }}/data/raw/$file data/raw/$file 2>/dev/null; then
+              # Determine S3 path based on file type
+              if [[ "$file" == *.parquet ]]; then
+                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/parquet/$file"
+              elif [[ "$file" == *.xlsx ]]; then
+                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/$file"
+              else
+                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/$file"
+              fi
+
+              if aws s3 cp "$s3_path" data/raw/$file 2>/dev/null; then
                 echo "  ✓ Recovered $file from S3 cache"
                 # Track fallback for parquet files only (for summary reporting)
                 if [[ "$file" == *.parquet ]]; then
@@ -159,10 +176,19 @@ jobs:
       - name: Upload raw data to S3
         if: github.event_name != 'pull_request' && steps.check-cache.outputs.source == 'api'
         run: |
-          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/ \
+          # Upload parquet files
+          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/parquet/ \
+            --exclude "*" --include "*.parquet" \
             --delete \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
-          echo "Raw data uploaded to s3://${{ env.S3_BUCKET }}/data/raw/"
+
+          # Upload H1B source files
+          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/ \
+            --exclude "*" --include "*.xlsx" \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+
+          echo "Raw data uploaded to s3://${{ env.S3_BUCKET }}/data/raw/parquet/ and h1b-source/"
 
   merge:
     needs: collect
