@@ -195,7 +195,9 @@ class AdzunaJobsCollector:
         self,
         queries: Optional[list[str]] = None,
         locations: Optional[list[str]] = None,
-        max_pages: int = 5,
+        max_pages: int = 10,
+        max_queries: Optional[int] = None,
+        max_locations: Optional[int] = None,
     ) -> pd.DataFrame:
         """
         Fetch job postings for AI/ML roles.
@@ -203,7 +205,9 @@ class AdzunaJobsCollector:
         Args:
             queries: Search queries (default: AI_SEARCH_QUERIES)
             locations: Locations to search (default: all LOCATIONS)
-            max_pages: Maximum pages to fetch per query
+            max_pages: Maximum pages to fetch per query (default: 10)
+            max_queries: Limit number of queries (default: all queries)
+            max_locations: Limit number of locations (default: all locations)
 
         Returns:
             DataFrame with job posting data
@@ -212,9 +216,13 @@ class AdzunaJobsCollector:
             return self._create_sample_data()
 
         if queries is None:
-            queries = self.AI_SEARCH_QUERIES[:5]  # Limit for rate limiting
+            queries = self.AI_SEARCH_QUERIES
+            if max_queries:
+                queries = queries[:max_queries]
         if locations is None:
-            locations = list(self.LOCATIONS.keys())[:5]
+            locations = list(self.LOCATIONS.keys())
+            if max_locations:
+                locations = locations[:max_locations]
 
         all_jobs = []
 
@@ -357,12 +365,14 @@ class AdzunaJobsCollector:
     def fetch_salary_distributions(
         self,
         queries: Optional[list[str]] = None,
+        max_queries: Optional[int] = None,
     ) -> pd.DataFrame:
         """
         Fetch salary histogram data for different job types.
 
         Args:
             queries: Job queries to get salary distributions for
+            max_queries: Limit number of queries (default: all queries)
 
         Returns:
             DataFrame with salary distribution data
@@ -371,7 +381,9 @@ class AdzunaJobsCollector:
             return pd.DataFrame()
 
         if queries is None:
-            queries = self.AI_SEARCH_QUERIES[:5]
+            queries = self.AI_SEARCH_QUERIES
+            if max_queries:
+                queries = queries[:max_queries]
 
         all_histograms = []
 
@@ -426,12 +438,18 @@ class AdzunaJobsCollector:
     def collect(
         self,
         include_histograms: bool = True,
+        max_queries: Optional[int] = None,
+        max_locations: Optional[int] = None,
+        max_pages: int = 10,
     ) -> dict[str, pd.DataFrame]:
         """
         Collect comprehensive job posting data.
 
         Args:
             include_histograms: Whether to fetch salary histograms
+            max_queries: Limit number of queries (default: all 14 queries)
+            max_locations: Limit number of locations (default: all 11 locations)
+            max_pages: Maximum pages per query (default: 10)
 
         Returns:
             Dictionary with jobs and histogram DataFrames
@@ -439,12 +457,20 @@ class AdzunaJobsCollector:
         results = {}
 
         print("Collecting job postings...")
-        jobs_df = self.fetch_jobs()
+        print(f"  Using {len(self.AI_SEARCH_QUERIES) if not max_queries else max_queries} queries")
+        print(f"  Using {len(self.LOCATIONS) if not max_locations else max_locations} locations")
+        print(f"  Max {max_pages} pages per query")
+
+        jobs_df = self.fetch_jobs(
+            max_queries=max_queries,
+            max_locations=max_locations,
+            max_pages=max_pages,
+        )
         results["jobs"] = jobs_df
 
         if include_histograms and self._check_credentials():
             print("\nCollecting salary distributions...")
-            histogram_df = self.fetch_salary_distributions()
+            histogram_df = self.fetch_salary_distributions(max_queries=max_queries)
             results["salary_histograms"] = histogram_df
 
         return results

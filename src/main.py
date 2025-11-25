@@ -37,7 +37,10 @@ def collect_data(args):
         print("\n[1/4] Collecting H1B Salary Data...")
         try:
             h1b = H1BSalaryCollector(data_dir=args.data_dir)
-            df = h1b.collect(years=args.years or [2023, 2024])
+            df = h1b.collect(
+                years=args.years or [2023, 2024],
+                n_samples=args.h1b_samples,
+            )
             if not df.empty:
                 stats = h1b.get_summary_stats(df)
                 print(f"  Collected {len(df)} H1B records")
@@ -62,7 +65,11 @@ def collect_data(args):
         print("\n[3/4] Collecting Job Posting Data...")
         try:
             adzuna = AdzunaJobsCollector(data_dir=args.data_dir)
-            results = adzuna.collect()
+            results = adzuna.collect(
+                max_queries=args.adzuna_queries,
+                max_locations=args.adzuna_locations,
+                max_pages=args.adzuna_pages,
+            )
             if "jobs" in results:
                 print(f"  Collected {len(results['jobs'])} job postings")
         except Exception as e:
@@ -423,6 +430,30 @@ Examples:
         "--start-year",
         type=int,
         help="Start year for BLS data",
+    )
+    collect_parser.add_argument(
+        "--h1b-samples",
+        type=int,
+        default=5000,
+        help="Number of H1B samples to generate if real data unavailable (default: 5000)",
+    )
+    collect_parser.add_argument(
+        "--adzuna-queries",
+        type=int,
+        default=None,
+        help="Number of Adzuna search queries to use (default: all 14)",
+    )
+    collect_parser.add_argument(
+        "--adzuna-locations",
+        type=int,
+        default=None,
+        help="Number of Adzuna locations to search (default: all 11)",
+    )
+    collect_parser.add_argument(
+        "--adzuna-pages",
+        type=int,
+        default=10,
+        help="Maximum pages per Adzuna query (default: 10)",
     )
 
     # Merge command
