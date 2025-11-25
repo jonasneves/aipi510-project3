@@ -171,6 +171,7 @@ class LinkedInJobsCollector:
             "$150,000 - $200,000" -> 175000 (midpoint)
             "$150K - $200K" -> 175000
             "$150,000/yr" -> 150000
+            "$50/hr" -> 104000 (converted to annual)
             "Not specified" -> None
 
         Args:
@@ -187,8 +188,11 @@ class LinkedInJobsCollector:
         if text in ["not specified", "none", ""]:
             return None
 
-        # Remove currency symbols, commas, and "yr"
-        text = text.replace('$', '').replace(',', '').replace('/yr', '').strip()
+        # Detect if this is an hourly rate
+        is_hourly = '/hr' in text or 'per hour' in text or 'hourly' in text
+
+        # Remove currency symbols, commas, and rate indicators
+        text = text.replace('$', '').replace(',', '').replace('/yr', '').replace('/hr', '').replace('per hour', '').replace('hourly', '').strip()
 
         # Handle K notation (e.g., "150K")
         text = re.sub(r'(\d+)k', lambda m: str(int(m.group(1)) * 1000), text)
@@ -201,11 +205,20 @@ class LinkedInJobsCollector:
 
         if len(numbers) == 1:
             # Single salary value
-            return float(numbers[0])
+            salary = float(numbers[0])
         else:
             # Range - return midpoint
             values = [float(n) for n in numbers]
-            return sum(values) / len(values)
+            salary = sum(values) / len(values)
+
+        # Convert hourly to annual if needed
+        # Heuristic: if value is less than 500 and not explicitly marked as hourly,
+        # it's likely hourly (e.g., internships often show hourly rates)
+        if is_hourly or (salary < 500):
+            # Convert hourly to annual: hourly_rate × 40 hours/week × 52 weeks/year
+            salary = salary * 40 * 52
+
+        return salary
 
     def _parse_experience_years(self, exp_text: str) -> Optional[int]:
         """
