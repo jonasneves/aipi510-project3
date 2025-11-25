@@ -277,7 +277,7 @@ jobs:
           echo "File size: $FILE_SIZE"
 
           # Upload to S3
-          aws s3 sync ./data s3://ai-salary-predictor/linkedin/raw/ \
+          aws s3 sync ./data s3://ai-salary-predictor/data/linkedin/raw/ \
             --exclude "*" \
             --include "batch-${{ matrix.batch }}-*.jsonl" \
             --storage-class INTELLIGENT_TIERING
@@ -317,10 +317,10 @@ jobs:
           # Debug: List files on S3 for this timestamp
           echo "Looking for files with timestamp: ${{ needs.generate-matrix.outputs.timestamp }}"
           echo "Files on S3 matching pattern:"
-          aws s3 ls s3://ai-salary-predictor/linkedin/raw/ | grep "batch-.*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl" || echo "No matching files found"
+          aws s3 ls s3://ai-salary-predictor/data/linkedin/raw/ | grep "batch-.*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl" || echo "No matching files found"
 
           # Download batch files
-          aws s3 sync s3://ai-salary-predictor/linkedin/raw/ ./data/ \
+          aws s3 sync s3://ai-salary-predictor/data/linkedin/raw/ ./data/ \
             --exclude "*" \
             --include "batch-*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl"
 
@@ -331,7 +331,7 @@ jobs:
           if [ "$FILE_COUNT" -eq 0 ]; then
             echo "ERROR: No batch files downloaded from S3"
             echo "Checking all files in linkedin/raw/:"
-            aws s3 ls s3://ai-salary-predictor/linkedin/raw/ --recursive | tail -20
+            aws s3 ls s3://ai-salary-predictor/data/linkedin/raw/ --recursive | tail -20
             exit 1
           fi
 
@@ -347,8 +347,57 @@ jobs:
         run: |
           aws s3 cp \
             ./data/consolidated-${{ needs.generate-matrix.outputs.timestamp }}.jsonl \
-            s3://ai-salary-predictor/linkedin/consolidated/ \
+            s3://ai-salary-predictor/data/linkedin/processed/ \
             --storage-class INTELLIGENT_TIERING
+
+      # Comprehensive consolidation of ALL LinkedIn data
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: pip install pandas pyarrow boto3
+
+      - name: Download ALL LinkedIn data from S3
+        run: |
+          mkdir -p data/linkedin/raw data/linkedin/processed
+
+          echo "Downloading all historical batch files..."
+          aws s3 sync s3://ai-salary-predictor/data/linkedin/raw/ data/linkedin/raw/ \
+            --exclude "*" \
+            --include "batch-*.jsonl" \
+            --include "ai-jobs-*.jsonl"
+
+          echo "Downloading all consolidated files..."
+          aws s3 sync s3://ai-salary-predictor/data/linkedin/processed/ data/linkedin/processed/ \
+            --exclude "*" \
+            --include "consolidated-*.jsonl"
+
+          echo "Downloaded files:"
+          echo "  Raw batches: $(ls -1 data/linkedin/raw/batch-*.jsonl 2>/dev/null | wc -l)"
+          echo "  AI jobs: $(ls -1 data/linkedin/raw/ai-jobs-*.jsonl 2>/dev/null | wc -l)"
+          echo "  Consolidated: $(ls -1 data/linkedin/processed/consolidated-*.jsonl 2>/dev/null | wc -l)"
+
+      - name: Consolidate ALL LinkedIn data
+        run: |
+          echo "Running comprehensive consolidation..."
+          python3 scripts/consolidate_linkedin_local.py
+
+          # Show final count
+          if [ -f "data/linkedin/processed/linkedin_ai_jobs.parquet" ]; then
+            TOTAL_RECORDS=$(python3 -c "import pandas as pd; print(len(pd.read_parquet('data/linkedin/processed/linkedin_ai_jobs.parquet')))" 2>/dev/null || echo "0")
+            echo "Total consolidated records: $TOTAL_RECORDS"
+            echo "total_records=$TOTAL_RECORDS" >> $GITHUB_ENV
+          fi
+
+      - name: Upload comprehensive consolidated data
+        run: |
+          # Upload the comprehensive parquet file
+          aws s3 cp data/linkedin/processed/linkedin_ai_jobs.parquet \
+            s3://ai-salary-predictor/data/linkedin/processed/linkedin_ai_jobs.parquet \
+            --storage-class INTELLIGENT_TIERING
+
+          echo "✓ Uploaded comprehensive consolidated file to S3"
 
       - name: Create summary
         working-directory: linkedin-scraper
@@ -370,7 +419,7 @@ jobs:
             }' > ./data/run-summary.json
 
           aws s3 cp ./data/run-summary.json \
-            s3://ai-salary-predictor/metadata/latest-run.json
+            s3://ai-salary-predictor/data/linkedin/metadata/latest-run.json
 
           echo "## LinkedIn Data Collection Complete! ✅" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

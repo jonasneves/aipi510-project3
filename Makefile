@@ -1,6 +1,6 @@
 # Makefile for AI Salary Prediction Pipeline
 
-.PHONY: help install collect merge train predict pipeline api mlflow frontend frontend-dev frontend-build test docker-build docker-up docker-down format lint clean setup
+.PHONY: help install collect merge train predict pipeline api mlflow frontend frontend-dev frontend-build test docker-build docker-up docker-down format lint clean setup s3-backup
 
 help:
 	@echo "AI Salary Prediction Pipeline - Available Commands:"
@@ -26,6 +26,7 @@ help:
 	@echo "  make clean        - Remove generated files and cache"
 	@echo "  make format       - Format code with black and isort"
 	@echo "  make lint         - Run code linters"
+	@echo "  make s3-backup    - Download complete S3 bucket backup"
 	@echo ""
 
 install:
@@ -89,3 +90,6 @@ clean:
 
 setup: install collect merge train
 	@echo "Setup complete. Run 'make predict' to test predictions."
+
+s3-backup:
+	@bash scripts/download_s3_backup.sh

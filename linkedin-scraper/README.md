@@ -51,17 +51,17 @@ Generate Query Matrix
 
 1. **Collection** (Parallel): Each batch scrapes 2-5 LinkedIn searches
    - Saves to `batch-{N}-{TIMESTAMP}.jsonl`
-   - Uploads to `s3://ai-salary-predictor/linkedin/raw/`
+   - Uploads to `s3://ai-salary-predictor/data/linkedin/raw/`
 
 2. **Consolidation** (After all batches complete):
    - Downloads all batch files
    - Deduplicates by job_url
-   - Uploads to `s3://ai-salary-predictor/linkedin/consolidated/`
+   - Uploads to `s3://ai-salary-predictor/data/linkedin/processed/`
 
 3. **ML Pipeline** (Runs at 2 AM UTC):
    - Downloads consolidated file from S3
    - Standardizes schema
-   - Merges with H1B, BLS, Adzuna data
+   - Merges with H1B and Adzuna data
    - Trains salary prediction model
 
 ## Output Format

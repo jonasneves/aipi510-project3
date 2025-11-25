@@ -1,17 +1,11 @@
 """
 LinkedIn Jobs Collector
 
-Collects AI salary data from LinkedIn job postings stored in S3.
-Data is collected by a separate Node.js scraper and uploaded to S3 daily.
+Fetches consolidated LinkedIn job data from S3 with salary parsing.
+Built with Claude Code CLI assistance.
 
-S3 Paths:
-- Raw data: s3://ai-salary-predictor/linkedin/raw/
-- Consolidated: s3://ai-salary-predictor/linkedin/consolidated/
+S3 bucket: s3://ai-salary-predictor/data/linkedin/
 """
-
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Created S3-based LinkedIn data collector with consolidated dataset support,
-## salary range parsing, and integration with the ML pipeline.
 
 import json
 import re
@@ -27,7 +21,7 @@ from botocore.exceptions import ClientError, NoCredentialsError
 class LinkedInJobsCollector:
     """Collector for LinkedIn job salary data from S3."""
 
-    def __init__(self, data_dir: str = "data/raw", bucket: str = "ai-salary-predictor"):
+    def __init__(self, data_dir: str = "data/linkedin/raw", bucket: str = "ai-salary-predictor"):
         """
         Initialize the LinkedIn jobs collector.
 
@@ -216,11 +210,18 @@ class LinkedInJobsCollector:
             salary = sum(values) / len(values)
 
         # Convert hourly to annual if needed
-        # Heuristic: if value is less than 500 and not explicitly marked as hourly,
-        # it's likely hourly (e.g., internships often show hourly rates)
-        if is_hourly or (salary < 500):
+        # Only convert if explicitly marked as hourly OR clearly hourly rate
+        # Heuristic: values under $300 are likely hourly (minimum wage * 2080 hrs = ~$15k/yr)
+        if is_hourly:
             # Convert hourly to annual: hourly_rate × 40 hours/week × 52 weeks/year
             salary = salary * 40 * 52
+        elif salary < 300 and not is_hourly:
+            # Likely hourly but not explicitly marked
+            # Only convert if result would be reasonable ($15-300 * 2080 = $31k-$624k)
+            annual_estimate = salary * 40 * 52
+            if annual_estimate >= 30000 and annual_estimate <= 700000:
+                salary = annual_estimate
+            # Otherwise leave as-is (will be filtered by validation)
 
         return salary
 
@@ -349,7 +350,7 @@ class LinkedInJobsCollector:
 
         # List consolidated files
         files = self._list_s3_files(
-            prefix="linkedin/consolidated/",
+            prefix="data/linkedin/processed/",
             file_pattern=r"consolidated-.*\.jsonl$"
         )
 
@@ -371,6 +372,100 @@ class LinkedInJobsCollector:
 
         return df
 
+    def fetch_all_consolidated(self, include_raw: bool = True) -> pd.DataFrame:
+        """
+        Fetch ALL consolidated LinkedIn data files from S3 and merge them.
+
+        This method loads all historical consolidated files and deduplicates
+        them to create a comprehensive dataset. Use this to avoid data loss
+        from point-in-time snapshots.
+
+        Args:
+            include_raw: Also include raw files (ai-jobs-* and batch-*) from data/linkedin/raw/
+                        Default True to capture all data.
+
+        Returns:
+            DataFrame with all unique LinkedIn job data across all files
+        """
+        print("Fetching ALL historical LinkedIn data from S3...")
+
+        all_data = []
+        seen_urls = set()
+
+        # 1. Fetch all consolidated files
+        print("\n[1/2] Loading consolidated files...")
+        consolidated_files = self._list_s3_files(
+            prefix="data/linkedin/processed/",
+            file_pattern=r"consolidated-.*\.jsonl$"
+        )
+
+        if consolidated_files:
+            print(f"Found {len(consolidated_files)} consolidated files")
+
+            for s3_key in sorted(consolidated_files):
+                local_path = self._download_s3_file(s3_key)
+                if not local_path:
+                    continue
+
+                df = self._parse_jsonl_file(local_path)
+                if df.empty:
+                    continue
+
+                # Deduplicate by job_url
+                if 'job_url' in df.columns:
+                    mask = ~df['job_url'].isin(seen_urls)
+                    unique_df = df[mask]
+                    seen_urls.update(unique_df['job_url'].tolist())
+                    all_data.append(unique_df)
+                    print(f"  {local_path.name}: +{len(unique_df)} unique (total: {len(seen_urls)})")
+                else:
+                    all_data.append(df)
+        else:
+            print("No consolidated files found")
+
+        # 2. Fetch raw files (ai-jobs-* and batch-*)
+        if include_raw:
+            print("\n[2/2] Loading raw files...")
+            raw_files = self._list_s3_files(
+                prefix="data/linkedin/raw/",
+                file_pattern=r"(ai-jobs-|batch-).*\.jsonl$"
+            )
+
+            if raw_files:
+                print(f"Found {len(raw_files)} raw files")
+
+                for s3_key in sorted(raw_files):
+                    local_path = self._download_s3_file(s3_key)
+                    if not local_path:
+                        continue
+
+                    df = self._parse_jsonl_file(local_path)
+                    if df.empty:
+                        continue
+
+                    # Deduplicate
+                    if 'job_url' in df.columns:
+                        mask = ~df['job_url'].isin(seen_urls)
+                        unique_df = df[mask]
+                        if not unique_df.empty:
+                            seen_urls.update(unique_df['job_url'].tolist())
+                            all_data.append(unique_df)
+                            print(f"  {local_path.name}: +{len(unique_df)} unique (total: {len(seen_urls)})")
+            else:
+                print("No raw files found")
+        else:
+            print("\n[2/2] Skipping raw files (include_raw=False)")
+
+        if not all_data:
+            print("\nNo data found!")
+            return pd.DataFrame()
+
+        # Combine all unique data
+        combined_df = pd.concat(all_data, ignore_index=True)
+        print(f"\n✓ Total unique jobs collected: {len(combined_df)}")
+
+        return combined_df
+
     def fetch_raw_data(self, days_back: int = 7) -> pd.DataFrame:
         """
         Fetch raw LinkedIn data from S3 (from last N days).
@@ -385,7 +480,7 @@ class LinkedInJobsCollector:
 
         # List raw data files
         files = self._list_s3_files(
-            prefix="linkedin/raw/",
+            prefix="data/linkedin/raw/",
             file_pattern=r"(ai-jobs-|batch-).*\.jsonl$",
             days_back=days_back
         )
@@ -424,13 +519,17 @@ class LinkedInJobsCollector:
     def collect(
         self,
         use_consolidated: bool = True,
+        use_all_consolidated: bool = False,
         days_back: int = 7,
     ) -> pd.DataFrame:
         """
         Collect and process LinkedIn job data.
 
         Args:
-            use_consolidated: Use latest consolidated file (recommended)
+            use_consolidated: Use consolidated file(s) (recommended)
+            use_all_consolidated: If True, fetch ALL consolidated files (more data).
+                                 If False, fetch only latest consolidated file.
+                                 Ignored if use_consolidated=False.
             days_back: If not using consolidated, fetch raw data from last N days
 
         Returns:
@@ -442,7 +541,10 @@ class LinkedInJobsCollector:
 
         # Fetch data
         if use_consolidated:
-            df = self.fetch_latest_consolidated()
+            if use_all_consolidated:
+                df = self.fetch_all_consolidated()
+            else:
+                df = self.fetch_latest_consolidated()
         else:
             df = self.fetch_raw_data(days_back=days_back)
 
@@ -461,7 +563,8 @@ class LinkedInJobsCollector:
             print(f"Filtered to {len(standardized_df)} records with salary data (from {before_count})")
 
         # Save processed data
-        output_path = self.data_dir / "linkedin_ai_jobs.parquet"
+        output_path = self.data_dir.parent / "processed" / "linkedin_ai_jobs.parquet"
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         standardized_df.to_parquet(output_path, index=False)
         print(f"\nSaved {len(standardized_df)} records to {output_path}")
 

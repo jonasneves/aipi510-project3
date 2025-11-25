@@ -27,6 +27,7 @@ python-multipart>=0.0.6
 # Resume parsing
 pdfplumber>=0.10.0
 python-docx>=1.1.0
+spacy>=3.5.0
 
 # Experiment tracking
 mlflow>=2.9.0

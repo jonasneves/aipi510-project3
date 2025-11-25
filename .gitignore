@@ -92,3 +92,14 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# S3 data backup
+s3_data_backup/
+
+# Ignore content but keep directory structure
+data/*
+!data/.gitkeep
+docs/reports/*
+!docs/reports/.gitkeep
+models/*
+!models/.gitkeep

@@ -5,8 +5,8 @@ data:
   raw_dir: "data/raw"
   processed_dir: "data/processed"
   target_column: "annual_salary"
-  test_size: 0.2
-  validation_size: 0.15
+  test_size: 0.15  # 15% for test set (hybrid approach)
+  validation_size: 0.15  # 15% for validation set (from remaining 85%)
   random_state: 42
   salary_range:
     min: 50000
@@ -16,9 +16,6 @@ data:
 sources:
   h1b:
     years: [2023, 2024]
-  bls:
-    start_year: 2022
-    end_year: 2024
   adzuna:
     results_per_page: 50
     max_pages: 20
@@ -47,6 +44,10 @@ training:
   cv_folds: 5
   early_stopping_rounds: 20
   scale_features: false
+  # Data recency configuration
+  lookback_years: 2  # Only use data from last N years (e.g., 2 = 2024-2025 when current year is 2025)
+  split_strategy: "random"  # "random" or "temporal"
+  stratify_by_year: true  # Keep year distribution balanced in train/val/test
 
 # Feature Engineering
 features:
