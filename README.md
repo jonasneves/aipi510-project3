@@ -35,17 +35,17 @@ Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 | learning_rate | 0.1 |
 
 **Evaluation Metrics:**
-- MAE: ~$15,000
-- RMSE: ~$22,000
-- R²: ~0.65
+- MAE: ~$36,000
+- RMSE: ~$52,000
+- MAPE: ~23%
 
-**Key Features:** Job title seniority, state location, years of experience, skills (Python, PyTorch, Kubernetes, etc.)
+**Top Features:** Years of experience, company tier, role type (researcher/scientist/analyst), entry-level indicator
 
 ## Experiment Tracking
 
 MLflow is used for experiment tracking during model training.
 
-📊 **[View MLflow Experiment Report](docs/MLflow-Experiment-Report.pdf)**
+📊 **[MLflow Overview](docs/MLflow-Overview.pdf)** | **[Feature Importance](docs/MLflow-FeatureImportance.pdf)**
 
 ## Architecture
 
