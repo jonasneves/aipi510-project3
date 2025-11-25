@@ -8,6 +8,10 @@ which contains exact salary information for foreign workers.
 Data source: https://www.dol.gov/agencies/eta/foreign-labor/performance
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Implemented H1B data collection from DOL disclosure files with AI/ML job filtering,
+## salary normalization, and S3 caching for efficient data pipeline operation.
+
 import os
 import re
 from pathlib import Path
@@ -90,6 +94,7 @@ class H1BSalaryCollector:
         self,
         fiscal_year: int = 2024,
         quarter: Optional[int] = None,
+        n_samples: int = 5000,
     ) -> pd.DataFrame:
         """
         Fetch H1B LCA disclosure data for a given fiscal year.
@@ -97,6 +102,7 @@ class H1BSalaryCollector:
         Args:
             fiscal_year: The fiscal year to fetch data for (e.g., 2024)
             quarter: Specific quarter (1-4) or None for full year
+            n_samples: Number of samples to generate if real data unavailable (default: 5000)
 
         Returns:
             DataFrame with H1B salary data
@@ -148,7 +154,7 @@ class H1BSalaryCollector:
         else:
             # If direct download fails, try alternative approach with sample data
             print("Direct DOL download unavailable. Using fallback data...")
-            return self._create_realistic_sample_data(fiscal_year)
+            return self._create_realistic_sample_data(fiscal_year, n_samples)
 
         # Read the Excel file
         print("Reading H1B data file...")
@@ -157,7 +163,7 @@ class H1BSalaryCollector:
         except Exception as e:
             print(f"Error reading Excel file: {e}")
             print("Using fallback sample data...")
-            return self._create_realistic_sample_data(fiscal_year)
+            return self._create_realistic_sample_data(fiscal_year, n_samples)
 
         return self._standardize_columns(df)
 
@@ -252,18 +258,22 @@ class H1BSalaryCollector:
             "worksite_city", "worksite_state", "prevailing_wage"
         ])
 
-    def _create_realistic_sample_data(self, fiscal_year: int) -> pd.DataFrame:
+    def _create_realistic_sample_data(self, fiscal_year: int, n_samples: int = 5000) -> pd.DataFrame:
         """
         Create realistic sample H1B data based on actual salary distributions.
 
         This is used as a fallback when DOL data cannot be downloaded
         (e.g., due to bot protection). Data is based on published H1B
         salary statistics for AI/ML roles.
+
+        Args:
+            fiscal_year: The fiscal year to generate data for
+            n_samples: Number of samples to generate (default: 5000)
         """
         import numpy as np
         np.random.seed(42 + fiscal_year)
 
-        n_samples = 500  # Generate 500 realistic samples
+        print(f"Generating {n_samples} realistic H1B sample records...")
 
         # Top H1B sponsors for AI/ML roles (based on public data)
         employers = [
@@ -442,6 +452,7 @@ class H1BSalaryCollector:
         self,
         years: list[int] = None,
         filter_ai: bool = True,
+        n_samples: int = 5000,
     ) -> pd.DataFrame:
         """
         Collect and process H1B salary data.
@@ -449,6 +460,7 @@ class H1BSalaryCollector:
         Args:
             years: List of fiscal years to collect (default: [2023, 2024])
             filter_ai: Whether to filter for AI/ML jobs only
+            n_samples: Number of samples to generate if real data unavailable (default: 5000)
 
         Returns:
             Processed DataFrame with H1B salary data
@@ -463,7 +475,7 @@ class H1BSalaryCollector:
             print(f"Collecting H1B data for FY{year}")
             print(f"{'='*50}")
 
-            df = self.fetch_lca_data(fiscal_year=year)
+            df = self.fetch_lca_data(fiscal_year=year, n_samples=n_samples)
 
             if df.empty:
                 print(f"No data available for FY{year}")

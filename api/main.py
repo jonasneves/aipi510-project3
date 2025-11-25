@@ -2,6 +2,10 @@
 FastAPI application for AI/ML salary prediction service.
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Developed the FastAPI service architecture, resume parsing functionality, feature engineering
+## pipeline, and prediction endpoints with confidence intervals and factor analysis.
+
 import io
 import logging
 import re

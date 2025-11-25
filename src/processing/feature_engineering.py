@@ -5,6 +5,10 @@ Creates features for salary prediction from multiple data sources.
 Combines H1B data, BLS statistics, and job postings.
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Created feature extraction from job titles, skills categorization, location encoding,
+## company tier classification, and experience estimation for salary prediction.
+
 import re
 from pathlib import Path
 from typing import Optional

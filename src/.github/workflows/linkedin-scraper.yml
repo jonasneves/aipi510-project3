@@ -9,11 +9,13 @@ on:
   workflow_dispatch:
     inputs:
       runners:
-        description: 'Number of parallel runners (1-10)'
+        description: 'Number of parallel runners (1-20)'
         type: choice
         options:
           - '10'
           - '5'
+          - '15'
+          - '20'
         default: '10'
 
 permissions:
@@ -122,7 +124,7 @@ jobs:
     needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 10
+      max-parallel: 20
       fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
 

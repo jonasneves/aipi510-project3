@@ -5,6 +5,10 @@ Predicts AI/ML salary ranges based on job features, location,
 experience level, skills, and market trends.
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Implemented the XGBoost regression model with cross-validation, hyperparameter tuning,
+## confidence interval predictions, and feature importance tracking for salary estimation.
+
 import pickle
 from pathlib import Path
 from typing import Optional
