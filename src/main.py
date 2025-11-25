@@ -4,6 +4,10 @@ AI Salary Negotiation Intelligence Tool
 Main entry point for data collection, model training, and salary predictions.
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Designed and implemented the ML pipeline orchestration, including data collection workflows,
+## model training with MLflow integration, and prediction interface with salary range estimation.
+
 import argparse
 import sys
 from pathlib import Path

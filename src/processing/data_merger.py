@@ -5,6 +5,10 @@ Combines data from multiple sources (H1B, BLS, job postings)
 into a unified dataset for salary prediction modeling.
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Built data integration pipeline combining H1B, BLS, Adzuna, and LinkedIn sources with
+## schema alignment, deduplication, validation, and temporal train/test splitting.
+
 from pathlib import Path
 from typing import Optional
 

@@ -8,6 +8,10 @@ which contains exact salary information for foreign workers.
 Data source: https://www.dol.gov/agencies/eta/foreign-labor/performance
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Implemented H1B data collection from DOL disclosure files with AI/ML job filtering,
+## salary normalization, and S3 caching for efficient data pipeline operation.
+
 import os
 import re
 from pathlib import Path

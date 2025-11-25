@@ -7,6 +7,10 @@ Adzuna aggregates job postings from multiple sources and provides salary estimat
 API Documentation: https://developer.adzuna.com/
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Built Adzuna API integration for job posting data collection with rate limiting,
+## retry logic, and salary range extraction for market trend analysis.
+
 import os
 from pathlib import Path
 from typing import Optional

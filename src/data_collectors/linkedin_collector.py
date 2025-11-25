@@ -9,6 +9,10 @@ S3 Paths:
 - Consolidated: s3://ai-salary-predictor/linkedin/consolidated/
 """
 
+## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
+## Created S3-based LinkedIn data collector with consolidated dataset support,
+## salary range parsing, and integration with the ML pipeline.
+
 import json
 import re
 from pathlib import Path
