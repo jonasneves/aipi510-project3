@@ -1,16 +1,21 @@
-name: Parallel Salary Data Collection
+name: LinkedIn Salary Data Collection
 
 on:
-  # Run daily at 2 AM UTC
+  # Run daily at 1 AM UTC (before ML pipeline at 2 AM)
   schedule:
-    - cron: '0 2 * * *'
+    - cron: '0 1 * * *'
 
   # Allow manual trigger
   workflow_dispatch:
     inputs:
       runners:
         description: 'Number of parallel runners (1-20)'
-        required: false
+        type: choice
+        options:
+          - '10'
+          - '5'
+          - '15'
+          - '20'
         default: '10'
 
 permissions:
@@ -29,14 +34,10 @@ jobs:
       - name: Generate search matrix
         id: set-matrix
         run: |
-          # Define all search queries
-          # Split into batches for parallel processing
-
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H-%M-%SZ")
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
 
           # Create matrix with search query batches
-          # Each runner will process a subset of queries
           cat << 'EOF' > matrix.json
           {
             "include": [
@@ -121,24 +122,25 @@ jobs:
     needs: generate-matrix
     runs-on: ubuntu-latest
     strategy:
-      max-parallel: 20  # Use up to 20 runners
-      fail-fast: false  # Continue even if one job fails
+      max-parallel: 20
+      fail-fast: false
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: linkedin-scraper/package.json
 
       - name: Install dependencies
+        working-directory: linkedin-scraper
         run: npm ci
 
       - name: Collect data for batch ${{ matrix.batch }}
+        working-directory: linkedin-scraper
         run: |
           # Create custom collection script for this batch
           cat << 'EOF' > scripts/collect-batch.js
@@ -241,45 +243,31 @@ jobs:
           aws-region: us-east-1
 
       - name: Upload batch data to S3
+        working-directory: linkedin-scraper
         run: |
-          # Verify batch file exists before uploading
-          BATCH_FILE=$(ls ./data/batch-${{ matrix.batch }}-*.jsonl 2>/dev/null || echo "")
-
-          if [ -z "$BATCH_FILE" ]; then
-            echo "Error: No batch file generated for batch ${{ matrix.batch }}"
-            echo "Files in ./data/:"
-            ls -lh ./data/
-            exit 1
-          fi
-
-          echo "Uploading: $BATCH_FILE"
-
           aws s3 sync ./data s3://ai-salary-predictor/data/raw/ \
             --exclude "*" \
             --include "batch-${{ matrix.batch }}-*.jsonl" \
             --storage-class INTELLIGENT_TIERING
 
-          echo "Successfully uploaded batch ${{ matrix.batch }} to S3"
+          echo "Uploaded batch ${{ matrix.batch }} to S3"
 
-          # Verify upload
-          aws s3 ls s3://ai-salary-predictor/data/raw/ | grep "batch-${{ matrix.batch }}-" || echo "Warning: Could not verify upload"
-
-  # Job 3: Consolidate and deduplicate (runs after all collections)
+  # Job 3: Consolidate and deduplicate
   consolidate:
     needs: [generate-matrix, collect-data]
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: linkedin-scraper/package.json
 
       - name: Install dependencies
+        working-directory: linkedin-scraper
         run: npm ci
 
       - name: Configure AWS credentials
@@ -289,40 +277,22 @@ jobs:
           aws-region: us-east-1
 
       - name: Download all batch files from S3
+        working-directory: linkedin-scraper
         run: |
           mkdir -p ./data
-          TIMESTAMP="${{ needs.generate-matrix.outputs.timestamp }}"
-          echo "Downloading batch files for timestamp: $TIMESTAMP"
-
-          # List what's available in S3
-          echo "Files in S3 bucket:"
-          aws s3 ls s3://ai-salary-predictor/data/raw/ --recursive | grep "batch-.*${TIMESTAMP}" || echo "No matching files found in S3"
-
-          # Download batch files
           aws s3 sync s3://ai-salary-predictor/data/raw/ ./data/ \
             --exclude "*" \
-            --include "batch-*-${TIMESTAMP}.jsonl"
-
-          echo "Files downloaded to ./data/:"
-          ls -lh ./data/ || echo "No files in ./data/"
+            --include "batch-*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl"
 
       - name: Deduplicate consolidated data
+        working-directory: linkedin-scraper
         run: |
-          # Check if we have any files to process
-          FILE_COUNT=$(ls -1 ./data/*.jsonl 2>/dev/null | wc -l)
-          if [ "$FILE_COUNT" -eq 0 ]; then
-            echo "Warning: No batch files found to deduplicate"
-            echo "This might mean batch jobs failed or files weren't uploaded to S3"
-            exit 1
-          fi
-
-          echo "Processing $FILE_COUNT batch file(s)"
           node scripts/deduplicate-data.js \
             ./data \
             ./data/consolidated-${{ needs.generate-matrix.outputs.timestamp }}.jsonl
 
       - name: Upload consolidated file
-        if: success()
+        working-directory: linkedin-scraper
         run: |
           aws s3 cp \
             ./data/consolidated-${{ needs.generate-matrix.outputs.timestamp }}.jsonl \
@@ -330,6 +300,7 @@ jobs:
             --storage-class INTELLIGENT_TIERING
 
       - name: Create summary
+        working-directory: linkedin-scraper
         run: |
           TIMESTAMP="${{ needs.generate-matrix.outputs.timestamp }}"
           TOTAL_SIZE=$(du -sh ./data | cut -f1)
@@ -350,5 +321,10 @@ jobs:
           aws s3 cp ./data/run-summary.json \
             s3://ai-salary-predictor/metadata/latest-run.json
 
-          echo "Collection complete!"
-          cat ./data/run-summary.json
+          echo "## LinkedIn Data Collection Complete! ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Timestamp:** $TIMESTAMP" >> $GITHUB_STEP_SUMMARY
+          echo "**Total Size:** $TOTAL_SIZE" >> $GITHUB_STEP_SUMMARY
+          echo "**Files Collected:** $FILE_COUNT" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          cat ./data/run-summary.json >> $GITHUB_STEP_SUMMARY

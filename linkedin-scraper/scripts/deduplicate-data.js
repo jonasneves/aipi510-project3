@@ -142,20 +142,8 @@ function processFile(filePath) {
  */
 function main() {
   // Find all JSONL files in input directory
-  const outputFileName = path.basename(OUTPUT_FILE);
   const files = fs.readdirSync(INPUT_DIR)
-    .filter(file => {
-      // Include .jsonl files that are job data (not output files)
-      if (!file.endsWith(".jsonl")) return false;
-
-      // Exclude the output file itself to avoid reading it during deduplication
-      if (file === outputFileName) return false;
-
-      // Include files that match job data patterns
-      return file.startsWith("ai-jobs-") ||
-             file.startsWith("batch-") ||
-             file.startsWith("consolidated-");
-    })
+    .filter(file => file.endsWith(".jsonl") && file.startsWith("ai-jobs-"))
     .map(file => path.join(INPUT_DIR, file))
     .sort();
 
@@ -184,22 +172,21 @@ function main() {
     stats.cleanedRecords++;
   });
 
-  // Wait for stream to finish before printing summary
-  writeStream.end(() => {
-    // Print summary
-    console.log(`\n${"=".repeat(80)}`);
-    console.log(`DEDUPLICATION COMPLETE`);
-    console.log(`${"=".repeat(80)}`);
-    console.log(`Files processed: ${stats.filesProcessed}`);
-    console.log(`Total records: ${stats.totalRecords}`);
-    console.log(`Duplicates removed: ${stats.duplicatesRemoved}`);
-    console.log(`Invalid records: ${stats.invalidRecords}`);
-    console.log(`Clean unique records: ${stats.cleanedRecords}`);
-    console.log(`Deduplication rate: ${((stats.duplicatesRemoved / stats.totalRecords) * 100).toFixed(1)}%`);
-    console.log(`Output file: ${OUTPUT_FILE}`);
-    console.log(`File size: ${(fs.statSync(OUTPUT_FILE).size / 1024).toFixed(2)} KB`);
-    console.log(`${"=".repeat(80)}\n`);
-  });
+  writeStream.end();
+
+  // Print summary
+  console.log(`\n${"=".repeat(80)}`);
+  console.log(`DEDUPLICATION COMPLETE`);
+  console.log(`${"=".repeat(80)}`);
+  console.log(`Files processed: ${stats.filesProcessed}`);
+  console.log(`Total records: ${stats.totalRecords}`);
+  console.log(`Duplicates removed: ${stats.duplicatesRemoved}`);
+  console.log(`Invalid records: ${stats.invalidRecords}`);
+  console.log(`Clean unique records: ${stats.cleanedRecords}`);
+  console.log(`Deduplication rate: ${((stats.duplicatesRemoved / stats.totalRecords) * 100).toFixed(1)}%`);
+  console.log(`Output file: ${OUTPUT_FILE}`);
+  console.log(`File size: ${(fs.statSync(OUTPUT_FILE).size / 1024).toFixed(2)} KB`);
+  console.log(`${"=".repeat(80)}\n`);
 }
 
 main();
