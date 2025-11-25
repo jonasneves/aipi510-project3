@@ -106,12 +106,13 @@ curl https://aisalary.neevs.io/api/options
 - [Setup Guide](docs/SETUP.md) - Local development
 - [Deployment Guide](docs/DEPLOYMENT.md) - Cloud deployment & AWS setup
 
-## Limitations
-
+## Limitations & Ethical Considerations
+ 
 - **Geographic bias:** H1B data skews toward CA, NY, WA where most visa sponsors operate
 - **Role coverage:** Limited to AI/ML titles; doesn't cover adjacent roles well
 - **Temporal lag:** H1B filings reflect offers made 6-12 months prior
 - **Company representation:** Large tech companies overrepresented vs. startups
+- **Responsible Use:** Use predictions as one data point among many; avoid anchoring salary negotiations solely on model outputs
 
 ## AI Usage Acknowledgement
 
