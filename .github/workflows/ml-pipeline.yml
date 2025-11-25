@@ -90,14 +90,21 @@ jobs:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
-        run: python -m src.main collect --source all
+        run: python -m src.main collect --source h1b --source bls --source jobs
+
+      # Always collect LinkedIn data (reads from S3, not external APIs)
+      - name: Collect LinkedIn data from S3
+        if: github.event_name != 'pull_request'
+        run: |
+          echo "Collecting LinkedIn job data from S3..."
+          python -m src.main collect --source linkedin || echo "LinkedIn collection failed, continuing..."
 
       # Fallback: Download missing files from S3 cache
       - name: Fallback to S3 cache for missing files
         if: steps.check-cache.outputs.source == 'api' && github.event_name != 'pull_request'
         run: |
           echo "Checking for missing data files..."
-          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
+          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet linkedin_ai_jobs.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
           MISSING_FILES=""
 
           for file in $EXPECTED_FILES; do
