@@ -229,11 +229,28 @@ jobs:
           collect().catch(e => { console.error(e); process.exit(1); });
           EOF
 
+          # Debug: Show what we're about to run
+          echo "=== Starting batch collection ==="
+          echo "Batch ID: ${{ matrix.batch }}"
+          echo "Timestamp: ${{ needs.generate-matrix.outputs.timestamp }}"
+          echo "Queries: ${{ toJson(matrix.queries) }}"
+          echo "=================================="
+
           # Run the batch collection
           BATCH_ID=${{ matrix.batch }} \
           TIMESTAMP=${{ needs.generate-matrix.outputs.timestamp }} \
           QUERIES='${{ toJson(matrix.queries) }}' \
           node scripts/collect-batch.js
+
+          # Verify the output file was created
+          EXPECTED_FILE="./data/batch-${{ matrix.batch }}-${{ needs.generate-matrix.outputs.timestamp }}.jsonl"
+          if [ -f "$EXPECTED_FILE" ]; then
+            LINE_COUNT=$(wc -l < "$EXPECTED_FILE")
+            echo "✓ Created $EXPECTED_FILE ($LINE_COUNT jobs)"
+          else
+            echo "✗ ERROR: Expected file not created: $EXPECTED_FILE"
+            exit 1
+          fi
 
         env:
           NODE_ENV: production
@@ -247,16 +264,32 @@ jobs:
       - name: Upload batch data to S3
         working-directory: linkedin-scraper
         run: |
+          # Verify batch file exists
+          BATCH_FILE=$(ls -1 ./data/batch-${{ matrix.batch }}-*.jsonl 2>/dev/null || echo "")
+
+          if [ -z "$BATCH_FILE" ]; then
+            echo "ERROR: No batch file found for batch ${{ matrix.batch }}"
+            echo "Files in ./data/:"
+            ls -la ./data/ || echo "No data directory"
+            exit 1
+          fi
+
+          echo "Uploading: $BATCH_FILE"
+          FILE_SIZE=$(du -h "$BATCH_FILE" | cut -f1)
+          echo "File size: $FILE_SIZE"
+
+          # Upload to S3
           aws s3 sync ./data s3://ai-salary-predictor/linkedin/raw/ \
             --exclude "*" \
             --include "batch-${{ matrix.batch }}-*.jsonl" \
             --storage-class INTELLIGENT_TIERING
 
-          echo "Uploaded batch ${{ matrix.batch }} to S3"
+          echo "✓ Uploaded batch ${{ matrix.batch }} to S3 ($FILE_SIZE)"
 
   # Job 3: Consolidate and deduplicate
   consolidate:
     needs: [generate-matrix, collect-data]
+    if: success()  # Only run if all collect-data jobs succeeded
     runs-on: ubuntu-latest
 
     steps:
@@ -282,9 +315,27 @@ jobs:
         working-directory: linkedin-scraper
         run: |
           mkdir -p ./data
+
+          # Debug: List files on S3 for this timestamp
+          echo "Looking for files with timestamp: ${{ needs.generate-matrix.outputs.timestamp }}"
+          echo "Files on S3 matching pattern:"
+          aws s3 ls s3://ai-salary-predictor/linkedin/raw/ | grep "batch-.*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl" || echo "No matching files found"
+
+          # Download batch files
           aws s3 sync s3://ai-salary-predictor/linkedin/raw/ ./data/ \
             --exclude "*" \
             --include "batch-*-${{ needs.generate-matrix.outputs.timestamp }}.jsonl"
+
+          # Verify files were downloaded
+          FILE_COUNT=$(ls -1 ./data/batch-*.jsonl 2>/dev/null | wc -l)
+          echo "Downloaded $FILE_COUNT batch files"
+
+          if [ "$FILE_COUNT" -eq 0 ]; then
+            echo "ERROR: No batch files downloaded from S3"
+            echo "Checking all files in linkedin/raw/:"
+            aws s3 ls s3://ai-salary-predictor/linkedin/raw/ --recursive | tail -20
+            exit 1
+          fi
 
       - name: Deduplicate consolidated data
         working-directory: linkedin-scraper
