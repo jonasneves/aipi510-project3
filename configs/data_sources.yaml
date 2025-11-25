@@ -45,6 +45,24 @@ sources:
       year: year
       soc_code: null
 
+  linkedin:
+    filename: linkedin_ai_jobs.parquet
+    columns:
+      job_title: job_title
+      employer_name: employer_name
+      location_city: null
+      location_state: worksite_state
+      annual_salary: annual_salary
+      year: year
+      soc_code: null
+      seniority_level: seniority_level
+      employment_type: employment_type
+      job_function: job_function
+      industries: industries
+      education: education
+      estimated_yoe: estimated_yoe
+      skills: skills
+
 # Metro area to state mapping for BLS data
 metro_to_state:
   "41860": CA  # San Francisco
