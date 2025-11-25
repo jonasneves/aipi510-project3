@@ -21,6 +21,7 @@ Predict AI/ML salaries using machine learning. Built for Duke AIPI 510 Module Pr
 | [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL certified visa applications with actual salaries | ~50k AI/ML jobs |
 | [BLS OES](https://www.bls.gov/oes/) | Occupational wage statistics by state | Benchmark data |
 | [Adzuna](https://developer.adzuna.com/) | Job postings with salary ranges | Market data |
+| [LinkedIn](https://www.linkedin.com) | Job postings with detailed salary, seniority, skills data | Collected daily |
 
 Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 
@@ -112,16 +113,13 @@ curl https://aisalary.neevs.io/api/options
 - **Temporal lag:** H1B filings reflect offers made 6-12 months prior
 - **Company representation:** Large tech companies overrepresented vs. startups
 
-## Acknowledgments
+## AI Usage Acknowledgement
 
 **AI Assistants:**
-- Claude Code (Anthropic) - code development and documentation
+- Claude Code (Anthropic) - code development, documentation, and research
 - Gemini 3 Pro Image / Nano Banana Pro (Google) - visual design
 
-**Data Sources:**
-- [U.S. Department of Labor](https://www.dol.gov/agencies/eta/foreign-labor/performance) - H1B visa data
-- [Bureau of Labor Statistics](https://www.bls.gov/oes/) - wage statistics
-- [Adzuna](https://developer.adzuna.com/) - job postings
+All code and analysis were reviewed, tested, and thoroughly understood by the team. The team takes full responsibility for the implementation and can explain all design decisions.
 
 ## Authors
 
