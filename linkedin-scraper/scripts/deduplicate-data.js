@@ -143,7 +143,7 @@ function processFile(filePath) {
 function main() {
   // Find all JSONL files in input directory
   const files = fs.readdirSync(INPUT_DIR)
-    .filter(file => file.endsWith(".jsonl") && file.startsWith("ai-jobs-"))
+    .filter(file => file.endsWith(".jsonl") && file.startsWith("batch-"))
     .map(file => path.join(INPUT_DIR, file))
     .sort();
 
