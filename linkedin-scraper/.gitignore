@@ -1,12 +1,12 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Data files
 data/
 *.jsonl
 *.json
 !package.json
+!package-lock.json
 
 # Logs
 *.log
