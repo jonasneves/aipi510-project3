@@ -1,0 +1,83 @@
+name: Collect Salary Data
+
+on:
+  # Run daily at 2 AM UTC
+  schedule:
+    - cron: '0 2 * * *'
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # Required for AWS OIDC
+  contents: read
+
+jobs:
+  collect-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Collect salary data
+        run: node scripts/collect-data.js
+        env:
+          NODE_ENV: production
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1  # Change to your preferred region
+
+      - name: Upload data to S3
+        run: |
+          # Upload all collected data files to S3
+          aws s3 sync ./data s3://ai-salary-predictor/data/raw/ \
+            --exclude "*" \
+            --include "*.jsonl" \
+            --storage-class INTELLIGENT_TIERING
+
+      - name: Upload summary
+        run: |
+          # Create and upload run summary
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          FILE_COUNT=$(ls -1 ./data/*.jsonl 2>/dev/null | wc -l)
+          TOTAL_SIZE=$(du -sh ./data 2>/dev/null | cut -f1)
+
+          echo "{\"timestamp\":\"$TIMESTAMP\",\"files_uploaded\":$FILE_COUNT,\"total_size\":\"$TOTAL_SIZE\",\"status\":\"success\"}" > ./data/run-summary.json
+
+          aws s3 cp ./data/run-summary.json s3://ai-salary-predictor/metadata/latest-run.json
+
+      - name: Cleanup old data (optional)
+        run: |
+          # Keep only last 30 days of data in S3
+          CUTOFF_DATE=$(date -u -d '30 days ago' +%Y-%m-%d)
+          echo "Cleaning up data older than $CUTOFF_DATE"
+
+          # This would require a script to list and delete old files
+          # Uncomment when ready to implement
+          # aws s3 ls s3://ai-salary-predictor/data/raw/ | while read -r line; do
+          #   ...cleanup logic...
+          # done
+
+      - name: Report status
+        if: always()
+        run: |
+          if [ -f ./data/*.jsonl ]; then
+            echo "✅ Data collection completed successfully"
+            ls -lh ./data/
+          else
+            echo "❌ No data files found"
+            exit 1
+          fi
