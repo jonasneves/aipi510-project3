@@ -140,7 +140,7 @@ function processFile(filePath) {
 /**
  * Main execution
  */
-function main() {
+async function main() {
   // Find all JSONL files in input directory
   const files = fs.readdirSync(INPUT_DIR)
     .filter(file => file.endsWith(".jsonl") && file.startsWith("batch-"))
@@ -165,14 +165,20 @@ function main() {
     fs.mkdirSync(outputDir, { recursive: true });
   }
 
-  const writeStream = fs.createWriteStream(OUTPUT_FILE);
+  // Create write stream and wait for it to finish
+  await new Promise((resolve, reject) => {
+    const writeStream = fs.createWriteStream(OUTPUT_FILE);
 
-  uniqueJobs.forEach(job => {
-    writeStream.write(JSON.stringify(job) + "\n");
-    stats.cleanedRecords++;
+    writeStream.on('error', reject);
+    writeStream.on('finish', resolve);
+
+    uniqueJobs.forEach(job => {
+      writeStream.write(JSON.stringify(job) + "\n");
+      stats.cleanedRecords++;
+    });
+
+    writeStream.end();
   });
-
-  writeStream.end();
 
   // Print summary
   console.log(`\n${"=".repeat(80)}`);
@@ -189,4 +195,7 @@ function main() {
   console.log(`${"=".repeat(80)}\n`);
 }
 
-main();
+main().catch(err => {
+  console.error('Fatal error:', err);
+  process.exit(1);
+});
