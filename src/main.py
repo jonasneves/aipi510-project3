@@ -29,7 +29,11 @@ def collect_data(args):
         LinkedInJobsCollector,
     )
 
-    if args.source == "all" or args.source == "h1b":
+    # Handle source argument (list of sources or None)
+    sources = args.source if args.source else ["all"]
+    should_collect = lambda source: "all" in sources or source in sources
+
+    if should_collect("h1b"):
         print("\n[1/4] Collecting H1B Salary Data...")
         try:
             h1b = H1BSalaryCollector(data_dir=args.data_dir)
@@ -42,7 +46,7 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting H1B data: {e}")
 
-    if args.source == "all" or args.source == "bls":
+    if should_collect("bls"):
         print("\n[2/4] Collecting BLS Wage Data...")
         try:
             bls = BLSDataCollector(data_dir=args.data_dir)
@@ -54,7 +58,7 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting BLS data: {e}")
 
-    if args.source == "all" or args.source == "jobs":
+    if should_collect("jobs"):
         print("\n[3/4] Collecting Job Posting Data...")
         try:
             adzuna = AdzunaJobsCollector(data_dir=args.data_dir)
@@ -64,7 +68,7 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting job data: {e}")
 
-    if args.source == "all" or args.source == "linkedin":
+    if should_collect("linkedin"):
         print("\n[4/4] Collecting LinkedIn Job Data from S3...")
         try:
             linkedin = LinkedInJobsCollector(data_dir=args.data_dir)
@@ -405,9 +409,9 @@ Examples:
     collect_parser = subparsers.add_parser("collect", help="Collect data from sources")
     collect_parser.add_argument(
         "--source",
+        action="append",
         choices=["all", "h1b", "bls", "jobs", "linkedin"],
-        default="all",
-        help="Data source to collect (default: all)",
+        help="Data source to collect (can be specified multiple times, default: all)",
     )
     collect_parser.add_argument(
         "--years",

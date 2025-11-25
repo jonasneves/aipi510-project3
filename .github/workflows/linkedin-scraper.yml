@@ -38,77 +38,79 @@ jobs:
           echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
 
           # Create matrix with search query batches
+          # All searches use salary: "50000" to match model's minimum
+          # Diversified by role level and specialization instead of salary
           cat << 'EOF' > matrix.json
           {
             "include": [
               {
                 "batch": "1",
                 "queries": [
-                  {"keyword": "machine learning engineer", "location": "United States", "salary": "100000", "limit": "100"},
-                  {"keyword": "machine learning engineer", "location": "California", "salary": "120000", "limit": "100"}
+                  {"keyword": "junior machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "entry level data scientist", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "2",
                 "queries": [
-                  {"keyword": "data scientist", "location": "United States", "salary": "100000", "limit": "100"},
-                  {"keyword": "data scientist", "location": "New York", "salary": "120000", "limit": "100"}
+                  {"keyword": "machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "data scientist", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "3",
                 "queries": [
-                  {"keyword": "AI engineer", "location": "United States", "salary": "100000", "limit": "100"},
-                  {"keyword": "AI engineer", "location": "Washington", "salary": "120000", "limit": "100"}
+                  {"keyword": "senior machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "senior data scientist", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "4",
                 "queries": [
-                  {"keyword": "deep learning engineer", "location": "United States", "salary": "120000", "limit": "100"},
-                  {"keyword": "computer vision engineer", "location": "United States", "salary": "120000", "limit": "100"}
+                  {"keyword": "principal machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "staff machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "5",
                 "queries": [
-                  {"keyword": "NLP engineer", "location": "United States", "salary": "120000", "limit": "100"},
-                  {"keyword": "research scientist", "location": "United States", "salary": "120000", "limit": "100"}
+                  {"keyword": "AI engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "deep learning engineer", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "6",
                 "queries": [
-                  {"keyword": "ML ops engineer", "location": "United States", "salary": "120000", "limit": "100"},
-                  {"keyword": "AI researcher", "location": "United States", "salary": "120000", "limit": "100"}
+                  {"keyword": "computer vision engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "NLP engineer", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "7",
                 "queries": [
-                  {"keyword": "machine learning", "location": "San Francisco", "salary": "150000", "limit": "100"},
-                  {"keyword": "machine learning", "location": "Seattle", "salary": "140000", "limit": "100"}
+                  {"keyword": "MLOps engineer", "location": "United States", "salary": "50000", "limit": "100"},
+                  {"keyword": "research scientist machine learning", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "8",
                 "queries": [
-                  {"keyword": "data science", "location": "San Francisco", "salary": "150000", "limit": "100"},
-                  {"keyword": "data science", "location": "Boston", "salary": "130000", "limit": "100"}
+                  {"keyword": "machine learning engineer", "location": "California", "salary": "50000", "limit": "100"},
+                  {"keyword": "data scientist", "location": "New York", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "9",
                 "queries": [
-                  {"keyword": "artificial intelligence", "location": "United States", "salary": "120000", "limit": "100"},
-                  {"keyword": "machine learning intern", "location": "United States", "salary": "40000", "limit": "50"}
+                  {"keyword": "machine learning engineer", "location": "Washington", "salary": "50000", "limit": "100"},
+                  {"keyword": "data scientist", "location": "Massachusetts", "salary": "50000", "limit": "100"}
                 ]
               },
               {
                 "batch": "10",
                 "queries": [
-                  {"keyword": "data scientist intern", "location": "United States", "salary": "40000", "limit": "50"},
-                  {"keyword": "AI intern", "location": "United States", "salary": "40000", "limit": "50"}
+                  {"keyword": "machine learning engineer", "location": "Texas", "salary": "50000", "limit": "100"},
+                  {"keyword": "applied scientist", "location": "United States", "salary": "50000", "limit": "100"}
                 ]
               }
             ]
