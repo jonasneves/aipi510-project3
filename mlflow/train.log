@@ -1,12 +1,12 @@
 /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/tracking/_tracking_service/utils.py:140: FutureWarning: Filesystem tracking backend (e.g., './mlruns') is deprecated. Please switch to a database backend (e.g., 'sqlite:///mlflow.db'). For feedback, see: https://github.com/mlflow/mlflow/issues/18534
   return FileStore(store_uri, store_uri)
-2025/11/26 19:07:32 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
-2025-11-26 19:07:32,484 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251126_190732.log
-2025-11-26 19:07:32,484 - DataMerger - INFO - Applying training profile: all
-2025-11-26 19:07:32,484 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
-2025-11-26 19:07:32,484 - DataMerger - INFO -   h1b: enabled
-2025-11-26 19:07:32,484 - DataMerger - INFO -   adzuna: enabled
-2025-11-26 19:07:32,484 - DataMerger - INFO -   linkedin: enabled
+2025/11/26 19:30:07 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
+2025-11-26 19:30:07,347 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251126_193007.log
+2025-11-26 19:30:07,348 - DataMerger - INFO - Applying training profile: all
+2025-11-26 19:30:07,348 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
+2025-11-26 19:30:07,348 - DataMerger - INFO -   h1b: enabled
+2025-11-26 19:30:07,348 - DataMerger - INFO -   adzuna: enabled
+2025-11-26 19:30:07,348 - DataMerger - INFO -   linkedin: enabled
 --- Model Training ---
 
 MLFlow tracking URI: file:./mlruns
@@ -15,274 +15,274 @@ MLFlow experiment: salary_prediction
 Loading data...
 
 Using training profile: all
-Loaded 3296 records from merged data
+Loaded 14449 records from merged data
 
 Filtering to recent data (last 2 years: 2024-2025)
-  Kept 3296 / 3296 records (100.0%)
+  Kept 14405 / 14449 records (99.7%)
   Renaming location_state to worksite_state for feature engineering
 
 Engineering features...
 
-Prepared 3054 samples with 30 features
+Prepared 13906 samples with 30 features
 Target column: annual_salary
 
 Creating train/test split...
-  Train: 2137 samples (70.0%)
-  Val:   458 samples (15.0%)
-  Test:  459 samples (15.0%)
+  Train: 9734 samples (70.0%)
+  Val:   2086 samples (15.0%)
+  Test:  2086 samples (15.0%)
 
 Training XGBoost model...
-MLFlow run ID: c2474530b51243efa44e82feed50d809
+MLFlow run ID: 87150a262e454a9894ef55c8e6126daa
 Training XGBoost salary prediction model...
-Training samples: 2137
+Training samples: 9734
 Features: 29
-Validation samples: 458
-[0]	validation_0-rmse:64144.96176	validation_1-rmse:60790.88289
-[1]	validation_0-rmse:61824.35349	validation_1-rmse:58606.84494
-[2]	validation_0-rmse:59858.85222	validation_1-rmse:56795.92793
-[3]	validation_0-rmse:58116.08909	validation_1-rmse:55305.48318
-[4]	validation_0-rmse:57149.85912	validation_1-rmse:54441.43408
-[5]	validation_0-rmse:56101.74544	validation_1-rmse:53498.19328
-[6]	validation_0-rmse:54840.32927	validation_1-rmse:52551.27555
-[7]	validation_0-rmse:54017.97980	validation_1-rmse:51826.26121
-[8]	validation_0-rmse:52994.96562	validation_1-rmse:51010.51820
-[9]	validation_0-rmse:52185.79145	validation_1-rmse:50400.00438
-[10]	validation_0-rmse:51601.47137	validation_1-rmse:50004.80225
-[11]	validation_0-rmse:50757.80916	validation_1-rmse:49436.39263
-[12]	validation_0-rmse:50102.46410	validation_1-rmse:49110.21074
-[13]	validation_0-rmse:49689.69337	validation_1-rmse:48930.64285
-[14]	validation_0-rmse:49145.89796	validation_1-rmse:48627.97387
-[15]	validation_0-rmse:48577.67718	validation_1-rmse:48305.05560
-[16]	validation_0-rmse:48069.01015	validation_1-rmse:48130.03294
-[17]	validation_0-rmse:47636.14864	validation_1-rmse:47974.09333
-[18]	validation_0-rmse:47298.34433	validation_1-rmse:47806.58130
-[19]	validation_0-rmse:47033.68392	validation_1-rmse:47666.94970
-[20]	validation_0-rmse:46720.41922	validation_1-rmse:47536.83461
-[21]	validation_0-rmse:46412.12228	validation_1-rmse:47375.66580
-[22]	validation_0-rmse:46151.84279	validation_1-rmse:47311.52132
-[23]	validation_0-rmse:45924.31809	validation_1-rmse:47280.71281
-[24]	validation_0-rmse:45669.94202	validation_1-rmse:47190.03339
-[25]	validation_0-rmse:45473.10240	validation_1-rmse:47072.52817
-[26]	validation_0-rmse:45311.67779	validation_1-rmse:46988.79149
-[27]	validation_0-rmse:45088.42395	validation_1-rmse:46900.47904
-[28]	validation_0-rmse:44986.74690	validation_1-rmse:46792.80749
-[29]	validation_0-rmse:44827.23676	validation_1-rmse:46766.93431
-[30]	validation_0-rmse:44669.48577	validation_1-rmse:46661.76607
-[31]	validation_0-rmse:44506.43861	validation_1-rmse:46602.38678
-[32]	validation_0-rmse:44308.62543	validation_1-rmse:46629.78891
-[33]	validation_0-rmse:44205.68548	validation_1-rmse:46615.45145
-[34]	validation_0-rmse:44106.56729	validation_1-rmse:46599.38755
-[35]	validation_0-rmse:43928.36130	validation_1-rmse:46663.33969
-[36]	validation_0-rmse:43794.92773	validation_1-rmse:46590.22636
-[37]	validation_0-rmse:43629.03111	validation_1-rmse:46485.77475
-[38]	validation_0-rmse:43531.73444	validation_1-rmse:46512.84248
-[39]	validation_0-rmse:43415.92025	validation_1-rmse:46608.15386
-[40]	validation_0-rmse:43300.91109	validation_1-rmse:46587.78550
-[41]	validation_0-rmse:43258.67903	validation_1-rmse:46590.37962
-[42]	validation_0-rmse:43125.25704	validation_1-rmse:46603.85287
-[43]	validation_0-rmse:43044.12201	validation_1-rmse:46597.76889
-[44]	validation_0-rmse:42985.24785	validation_1-rmse:46600.01762
-[45]	validation_0-rmse:42924.14084	validation_1-rmse:46614.88396
-[46]	validation_0-rmse:42792.08064	validation_1-rmse:46619.22538
-[47]	validation_0-rmse:42731.89072	validation_1-rmse:46655.25675
-[48]	validation_0-rmse:42646.07603	validation_1-rmse:46717.51208
-[49]	validation_0-rmse:42558.08623	validation_1-rmse:46788.00952
-[50]	validation_0-rmse:42489.12183	validation_1-rmse:46793.18549
-[51]	validation_0-rmse:42417.26049	validation_1-rmse:46796.59817
-[52]	validation_0-rmse:42272.48772	validation_1-rmse:46737.91852
-[53]	validation_0-rmse:42192.17458	validation_1-rmse:46777.78785
-[54]	validation_0-rmse:42105.39059	validation_1-rmse:46852.31203
-[55]	validation_0-rmse:42033.25543	validation_1-rmse:46910.58871
-[56]	validation_0-rmse:41984.70908	validation_1-rmse:46904.94967
-[57]	validation_0-rmse:41866.56767	validation_1-rmse:46964.76767
-[58]	validation_0-rmse:41829.33708	validation_1-rmse:46987.00716
-[59]	validation_0-rmse:41720.95207	validation_1-rmse:47105.44622
-[60]	validation_0-rmse:41674.62131	validation_1-rmse:47099.02125
-[61]	validation_0-rmse:41604.22126	validation_1-rmse:47107.27955
-[62]	validation_0-rmse:41525.78766	validation_1-rmse:47053.65981
-[63]	validation_0-rmse:41468.84909	validation_1-rmse:47045.63779
-[64]	validation_0-rmse:41377.91246	validation_1-rmse:47139.38465
-[65]	validation_0-rmse:41282.76207	validation_1-rmse:47186.58432
-[66]	validation_0-rmse:41251.55114	validation_1-rmse:47137.97704
-[67]	validation_0-rmse:41151.75833	validation_1-rmse:47162.77155
-[68]	validation_0-rmse:41075.27737	validation_1-rmse:47224.62774
-[69]	validation_0-rmse:41049.86827	validation_1-rmse:47170.94523
-[70]	validation_0-rmse:41006.91348	validation_1-rmse:47184.97218
-[71]	validation_0-rmse:40955.27391	validation_1-rmse:47176.30103
-[72]	validation_0-rmse:40894.10482	validation_1-rmse:47284.58814
-[73]	validation_0-rmse:40777.62485	validation_1-rmse:47303.07365
-[74]	validation_0-rmse:40724.50381	validation_1-rmse:47354.97379
-[75]	validation_0-rmse:40652.35325	validation_1-rmse:47341.61923
-[76]	validation_0-rmse:40594.76101	validation_1-rmse:47363.15086
-[77]	validation_0-rmse:40555.38309	validation_1-rmse:47353.34741
-[78]	validation_0-rmse:40516.41008	validation_1-rmse:47361.89204
-[79]	validation_0-rmse:40457.06502	validation_1-rmse:47377.96897
-[80]	validation_0-rmse:40414.50614	validation_1-rmse:47376.25083
-[81]	validation_0-rmse:40375.94618	validation_1-rmse:47392.75871
-[82]	validation_0-rmse:40326.73788	validation_1-rmse:47368.39149
-[83]	validation_0-rmse:40273.12835	validation_1-rmse:47390.77789
-[84]	validation_0-rmse:40159.00442	validation_1-rmse:47445.39107
-[85]	validation_0-rmse:40101.84662	validation_1-rmse:47511.01772
-[86]	validation_0-rmse:40035.07144	validation_1-rmse:47450.80373
-[87]	validation_0-rmse:39983.66517	validation_1-rmse:47422.27577
-[88]	validation_0-rmse:39922.73226	validation_1-rmse:47473.82421
-[89]	validation_0-rmse:39881.40316	validation_1-rmse:47469.01311
-[90]	validation_0-rmse:39822.68069	validation_1-rmse:47488.66735
-[91]	validation_0-rmse:39803.99098	validation_1-rmse:47426.08159
-[92]	validation_0-rmse:39753.09128	validation_1-rmse:47454.00662
-[93]	validation_0-rmse:39713.88217	validation_1-rmse:47475.19304
-[94]	validation_0-rmse:39685.58535	validation_1-rmse:47482.14271
-[95]	validation_0-rmse:39646.75612	validation_1-rmse:47497.01880
-[96]	validation_0-rmse:39604.52204	validation_1-rmse:47526.68150
-[97]	validation_0-rmse:39570.50511	validation_1-rmse:47530.73714
-[98]	validation_0-rmse:39525.00424	validation_1-rmse:47512.81672
-[99]	validation_0-rmse:39489.08694	validation_1-rmse:47523.69523
-[100]	validation_0-rmse:39451.10851	validation_1-rmse:47520.94078
-[101]	validation_0-rmse:39409.24470	validation_1-rmse:47555.19588
-[102]	validation_0-rmse:39352.89769	validation_1-rmse:47551.19356
-[103]	validation_0-rmse:39301.13514	validation_1-rmse:47543.39716
-[104]	validation_0-rmse:39242.79905	validation_1-rmse:47575.21211
-[105]	validation_0-rmse:39202.37237	validation_1-rmse:47585.04285
-[106]	validation_0-rmse:39165.70602	validation_1-rmse:47569.55768
-[107]	validation_0-rmse:39137.93550	validation_1-rmse:47563.50555
-[108]	validation_0-rmse:39107.81574	validation_1-rmse:47588.18682
-[109]	validation_0-rmse:39070.33781	validation_1-rmse:47609.33102
-[110]	validation_0-rmse:39031.60136	validation_1-rmse:47657.45403
-[111]	validation_0-rmse:38991.45504	validation_1-rmse:47652.77783
-[112]	validation_0-rmse:38940.72021	validation_1-rmse:47701.49639
-[113]	validation_0-rmse:38915.21311	validation_1-rmse:47736.42136
-[114]	validation_0-rmse:38882.27661	validation_1-rmse:47728.45308
-[115]	validation_0-rmse:38838.34058	validation_1-rmse:47700.07874
-[116]	validation_0-rmse:38778.52237	validation_1-rmse:47717.61736
-[117]	validation_0-rmse:38721.87937	validation_1-rmse:47751.93658
-[118]	validation_0-rmse:38682.08027	validation_1-rmse:47806.38660
-[119]	validation_0-rmse:38652.59504	validation_1-rmse:47836.11476
-[120]	validation_0-rmse:38611.56306	validation_1-rmse:47849.45960
-[121]	validation_0-rmse:38564.28027	validation_1-rmse:47901.47078
-[122]	validation_0-rmse:38534.28583	validation_1-rmse:47874.52734
-[123]	validation_0-rmse:38500.97118	validation_1-rmse:47826.80356
-[124]	validation_0-rmse:38458.76990	validation_1-rmse:47886.95871
-[125]	validation_0-rmse:38422.84893	validation_1-rmse:47867.09129
-[126]	validation_0-rmse:38388.39957	validation_1-rmse:47867.17162
-[127]	validation_0-rmse:38371.43347	validation_1-rmse:47916.18878
-[128]	validation_0-rmse:38339.43888	validation_1-rmse:47925.46299
-[129]	validation_0-rmse:38278.67503	validation_1-rmse:47949.89392
-[130]	validation_0-rmse:38236.43863	validation_1-rmse:47959.78565
-[131]	validation_0-rmse:38214.34325	validation_1-rmse:47947.22008
-[132]	validation_0-rmse:38187.29520	validation_1-rmse:47958.56881
-[133]	validation_0-rmse:38142.45948	validation_1-rmse:48085.03848
-[134]	validation_0-rmse:38121.78994	validation_1-rmse:48115.98172
-[135]	validation_0-rmse:38067.57226	validation_1-rmse:48128.37451
-[136]	validation_0-rmse:38039.00186	validation_1-rmse:48131.05075
-[137]	validation_0-rmse:37996.42607	validation_1-rmse:48151.79077
-[138]	validation_0-rmse:37963.19263	validation_1-rmse:48204.66331
-[139]	validation_0-rmse:37938.14600	validation_1-rmse:48183.40072
-[140]	validation_0-rmse:37900.30625	validation_1-rmse:48232.25011
-[141]	validation_0-rmse:37876.33740	validation_1-rmse:48252.15890
-[142]	validation_0-rmse:37850.19708	validation_1-rmse:48254.27049
-[143]	validation_0-rmse:37829.24584	validation_1-rmse:48235.04787
-[144]	validation_0-rmse:37795.79183	validation_1-rmse:48216.76992
-[145]	validation_0-rmse:37749.99060	validation_1-rmse:48230.52984
-[146]	validation_0-rmse:37711.34183	validation_1-rmse:48202.38625
-[147]	validation_0-rmse:37674.86768	validation_1-rmse:48187.82211
-[148]	validation_0-rmse:37653.41272	validation_1-rmse:48237.74061
-[149]	validation_0-rmse:37612.02834	validation_1-rmse:48227.03305
-[150]	validation_0-rmse:37592.27798	validation_1-rmse:48260.64776
-[151]	validation_0-rmse:37555.67041	validation_1-rmse:48252.95782
-[152]	validation_0-rmse:37513.26271	validation_1-rmse:48243.27990
-[153]	validation_0-rmse:37436.97774	validation_1-rmse:48235.93444
-[154]	validation_0-rmse:37404.80242	validation_1-rmse:48237.52543
-[155]	validation_0-rmse:37382.46423	validation_1-rmse:48230.91916
-[156]	validation_0-rmse:37362.08601	validation_1-rmse:48249.46333
-[157]	validation_0-rmse:37344.46322	validation_1-rmse:48262.08101
-[158]	validation_0-rmse:37325.58505	validation_1-rmse:48270.77738
-[159]	validation_0-rmse:37304.89296	validation_1-rmse:48243.31500
-[160]	validation_0-rmse:37279.96412	validation_1-rmse:48238.82054
-[161]	validation_0-rmse:37241.09126	validation_1-rmse:48271.36608
-[162]	validation_0-rmse:37218.61738	validation_1-rmse:48294.33554
-[163]	validation_0-rmse:37186.47035	validation_1-rmse:48298.01778
-[164]	validation_0-rmse:37167.80754	validation_1-rmse:48329.57344
-[165]	validation_0-rmse:37117.71081	validation_1-rmse:48345.38069
-[166]	validation_0-rmse:37084.95935	validation_1-rmse:48399.26876
-[167]	validation_0-rmse:37055.89085	validation_1-rmse:48431.08153
-[168]	validation_0-rmse:37008.84576	validation_1-rmse:48443.93525
-[169]	validation_0-rmse:36991.75405	validation_1-rmse:48460.65953
-[170]	validation_0-rmse:36973.26556	validation_1-rmse:48440.30147
-[171]	validation_0-rmse:36932.90727	validation_1-rmse:48445.91190
-[172]	validation_0-rmse:36911.24804	validation_1-rmse:48489.78323
-[173]	validation_0-rmse:36871.52205	validation_1-rmse:48514.27411
-[174]	validation_0-rmse:36859.49884	validation_1-rmse:48514.66066
-[175]	validation_0-rmse:36823.17442	validation_1-rmse:48597.08598
-[176]	validation_0-rmse:36798.83432	validation_1-rmse:48608.04147
-[177]	validation_0-rmse:36773.80654	validation_1-rmse:48645.17103
-[178]	validation_0-rmse:36733.02254	validation_1-rmse:48658.75482
-[179]	validation_0-rmse:36692.35168	validation_1-rmse:48666.87050
-[180]	validation_0-rmse:36680.56825	validation_1-rmse:48685.68363
-[181]	validation_0-rmse:36664.89595	validation_1-rmse:48698.43537
-[182]	validation_0-rmse:36644.86861	validation_1-rmse:48683.79603
-[183]	validation_0-rmse:36613.18750	validation_1-rmse:48707.73575
-[184]	validation_0-rmse:36576.18927	validation_1-rmse:48749.62693
-[185]	validation_0-rmse:36553.24173	validation_1-rmse:48817.00759
-[186]	validation_0-rmse:36536.46985	validation_1-rmse:48803.52060
-[187]	validation_0-rmse:36521.73758	validation_1-rmse:48840.72424
-[188]	validation_0-rmse:36507.52114	validation_1-rmse:48854.00670
-[189]	validation_0-rmse:36501.62984	validation_1-rmse:48874.13411
-[190]	validation_0-rmse:36482.61302	validation_1-rmse:48882.21349
-[191]	validation_0-rmse:36425.42476	validation_1-rmse:48949.16258
-[192]	validation_0-rmse:36409.85823	validation_1-rmse:48926.21225
-[193]	validation_0-rmse:36390.51734	validation_1-rmse:48954.21856
-[194]	validation_0-rmse:36353.41277	validation_1-rmse:48928.12960
-[195]	validation_0-rmse:36308.82309	validation_1-rmse:48971.22603
-[196]	validation_0-rmse:36288.83832	validation_1-rmse:48961.63648
-[197]	validation_0-rmse:36248.90671	validation_1-rmse:48981.25843
-[198]	validation_0-rmse:36230.53507	validation_1-rmse:48973.40484
-[199]	validation_0-rmse:36207.26738	validation_1-rmse:48979.07402
+Validation samples: 2086
+[0]	validation_0-rmse:64218.63099	validation_1-rmse:65448.70863
+[1]	validation_0-rmse:62957.84421	validation_1-rmse:64167.83620
+[2]	validation_0-rmse:61131.67368	validation_1-rmse:62452.12812
+[3]	validation_0-rmse:59505.25147	validation_1-rmse:60913.32406
+[4]	validation_0-rmse:58822.61574	validation_1-rmse:60170.03493
+[5]	validation_0-rmse:57615.55779	validation_1-rmse:58978.30509
+[6]	validation_0-rmse:56502.52272	validation_1-rmse:57909.11646
+[7]	validation_0-rmse:55613.12897	validation_1-rmse:57021.53014
+[8]	validation_0-rmse:54814.16655	validation_1-rmse:56299.59118
+[9]	validation_0-rmse:54158.03265	validation_1-rmse:55704.22611
+[10]	validation_0-rmse:53558.42473	validation_1-rmse:55141.24562
+[11]	validation_0-rmse:53035.79660	validation_1-rmse:54719.89750
+[12]	validation_0-rmse:52624.02323	validation_1-rmse:54376.07518
+[13]	validation_0-rmse:52200.66602	validation_1-rmse:54014.05325
+[14]	validation_0-rmse:51860.48629	validation_1-rmse:53744.94491
+[15]	validation_0-rmse:51603.33169	validation_1-rmse:53513.22766
+[16]	validation_0-rmse:51348.22972	validation_1-rmse:53287.21966
+[17]	validation_0-rmse:51060.92306	validation_1-rmse:53084.30188
+[18]	validation_0-rmse:50841.14391	validation_1-rmse:52910.05852
+[19]	validation_0-rmse:50663.85026	validation_1-rmse:52755.03324
+[20]	validation_0-rmse:50377.54400	validation_1-rmse:52518.36597
+[21]	validation_0-rmse:50177.12702	validation_1-rmse:52397.06546
+[22]	validation_0-rmse:50006.40130	validation_1-rmse:52238.86106
+[23]	validation_0-rmse:49849.02334	validation_1-rmse:52131.40897
+[24]	validation_0-rmse:49700.51163	validation_1-rmse:52006.07853
+[25]	validation_0-rmse:49531.25668	validation_1-rmse:51880.35439
+[26]	validation_0-rmse:49429.59036	validation_1-rmse:51806.14243
+[27]	validation_0-rmse:49271.29189	validation_1-rmse:51688.75939
+[28]	validation_0-rmse:49194.87175	validation_1-rmse:51661.56280
+[29]	validation_0-rmse:49106.22213	validation_1-rmse:51556.82283
+[30]	validation_0-rmse:49017.44468	validation_1-rmse:51517.54378
+[31]	validation_0-rmse:48885.75464	validation_1-rmse:51439.98733
+[32]	validation_0-rmse:48804.56003	validation_1-rmse:51406.03292
+[33]	validation_0-rmse:48736.88330	validation_1-rmse:51345.37320
+[34]	validation_0-rmse:48665.11411	validation_1-rmse:51335.00013
+[35]	validation_0-rmse:48611.39735	validation_1-rmse:51308.03307
+[36]	validation_0-rmse:48566.64499	validation_1-rmse:51280.85216
+[37]	validation_0-rmse:48485.41167	validation_1-rmse:51225.57186
+[38]	validation_0-rmse:48428.27339	validation_1-rmse:51191.46912
+[39]	validation_0-rmse:48374.75802	validation_1-rmse:51168.91391
+[40]	validation_0-rmse:48309.80458	validation_1-rmse:51106.77618
+[41]	validation_0-rmse:48249.80243	validation_1-rmse:51099.06143
+[42]	validation_0-rmse:48166.48941	validation_1-rmse:51069.97947
+[43]	validation_0-rmse:48118.82918	validation_1-rmse:51056.75325
+[44]	validation_0-rmse:48098.32777	validation_1-rmse:51049.63748
+[45]	validation_0-rmse:48063.27197	validation_1-rmse:51064.56846
+[46]	validation_0-rmse:48015.93718	validation_1-rmse:51032.06981
+[47]	validation_0-rmse:47983.56816	validation_1-rmse:51010.08448
+[48]	validation_0-rmse:47924.89775	validation_1-rmse:50965.36671
+[49]	validation_0-rmse:47886.21559	validation_1-rmse:50958.11499
+[50]	validation_0-rmse:47851.48289	validation_1-rmse:50937.00294
+[51]	validation_0-rmse:47821.72285	validation_1-rmse:50925.83905
+[52]	validation_0-rmse:47784.17954	validation_1-rmse:50915.60049
+[53]	validation_0-rmse:47742.50173	validation_1-rmse:50914.94926
+[54]	validation_0-rmse:47705.24413	validation_1-rmse:50896.86843
+[55]	validation_0-rmse:47670.05760	validation_1-rmse:50873.45968
+[56]	validation_0-rmse:47634.46762	validation_1-rmse:50866.06283
+[57]	validation_0-rmse:47583.83443	validation_1-rmse:50896.52760
+[58]	validation_0-rmse:47558.88126	validation_1-rmse:50875.99579
+[59]	validation_0-rmse:47525.38440	validation_1-rmse:50861.00305
+[60]	validation_0-rmse:47487.36864	validation_1-rmse:50850.81622
+[61]	validation_0-rmse:47458.10742	validation_1-rmse:50856.69003
+[62]	validation_0-rmse:47422.11315	validation_1-rmse:50841.23305
+[63]	validation_0-rmse:47403.07282	validation_1-rmse:50829.18431
+[64]	validation_0-rmse:47361.96612	validation_1-rmse:50822.92325
+[65]	validation_0-rmse:47342.46472	validation_1-rmse:50814.40404
+[66]	validation_0-rmse:47323.29360	validation_1-rmse:50803.62597
+[67]	validation_0-rmse:47303.09593	validation_1-rmse:50803.96537
+[68]	validation_0-rmse:47281.01769	validation_1-rmse:50807.69397
+[69]	validation_0-rmse:47259.37849	validation_1-rmse:50804.37354
+[70]	validation_0-rmse:47218.30508	validation_1-rmse:50800.52538
+[71]	validation_0-rmse:47203.98034	validation_1-rmse:50803.87592
+[72]	validation_0-rmse:47179.62104	validation_1-rmse:50792.72955
+[73]	validation_0-rmse:47159.98311	validation_1-rmse:50795.01959
+[74]	validation_0-rmse:47146.17245	validation_1-rmse:50808.60302
+[75]	validation_0-rmse:47127.72787	validation_1-rmse:50805.15538
+[76]	validation_0-rmse:47106.29899	validation_1-rmse:50801.24295
+[77]	validation_0-rmse:47089.05968	validation_1-rmse:50796.67939
+[78]	validation_0-rmse:47063.75461	validation_1-rmse:50802.76561
+[79]	validation_0-rmse:47046.55201	validation_1-rmse:50807.23134
+[80]	validation_0-rmse:47034.15864	validation_1-rmse:50797.03779
+[81]	validation_0-rmse:47014.25598	validation_1-rmse:50809.40261
+[82]	validation_0-rmse:46991.59664	validation_1-rmse:50805.80427
+[83]	validation_0-rmse:46972.55195	validation_1-rmse:50805.42819
+[84]	validation_0-rmse:46951.71025	validation_1-rmse:50790.73183
+[85]	validation_0-rmse:46940.60271	validation_1-rmse:50782.21791
+[86]	validation_0-rmse:46912.20180	validation_1-rmse:50770.74461
+[87]	validation_0-rmse:46902.88665	validation_1-rmse:50766.62307
+[88]	validation_0-rmse:46887.57426	validation_1-rmse:50764.85300
+[89]	validation_0-rmse:46870.75711	validation_1-rmse:50753.80433
+[90]	validation_0-rmse:46853.55753	validation_1-rmse:50765.14626
+[91]	validation_0-rmse:46837.16185	validation_1-rmse:50767.65135
+[92]	validation_0-rmse:46821.80905	validation_1-rmse:50762.57313
+[93]	validation_0-rmse:46807.33041	validation_1-rmse:50763.02601
+[94]	validation_0-rmse:46790.12734	validation_1-rmse:50749.49259
+[95]	validation_0-rmse:46766.57552	validation_1-rmse:50741.35366
+[96]	validation_0-rmse:46753.79536	validation_1-rmse:50740.84150
+[97]	validation_0-rmse:46738.63818	validation_1-rmse:50740.74845
+[98]	validation_0-rmse:46729.92354	validation_1-rmse:50733.75944
+[99]	validation_0-rmse:46714.66221	validation_1-rmse:50732.37691
+[100]	validation_0-rmse:46705.18284	validation_1-rmse:50731.89885
+[101]	validation_0-rmse:46694.54988	validation_1-rmse:50732.74556
+[102]	validation_0-rmse:46682.34097	validation_1-rmse:50747.87887
+[103]	validation_0-rmse:46671.27754	validation_1-rmse:50752.63534
+[104]	validation_0-rmse:46662.65350	validation_1-rmse:50759.13688
+[105]	validation_0-rmse:46654.36184	validation_1-rmse:50760.91971
+[106]	validation_0-rmse:46640.12587	validation_1-rmse:50778.37912
+[107]	validation_0-rmse:46625.42937	validation_1-rmse:50782.01045
+[108]	validation_0-rmse:46619.85172	validation_1-rmse:50786.46439
+[109]	validation_0-rmse:46610.70206	validation_1-rmse:50791.62117
+[110]	validation_0-rmse:46594.38373	validation_1-rmse:50801.20895
+[111]	validation_0-rmse:46577.05167	validation_1-rmse:50800.47464
+[112]	validation_0-rmse:46561.28346	validation_1-rmse:50814.90568
+[113]	validation_0-rmse:46552.82961	validation_1-rmse:50817.13997
+[114]	validation_0-rmse:46536.92656	validation_1-rmse:50820.31337
+[115]	validation_0-rmse:46526.01137	validation_1-rmse:50817.81740
+[116]	validation_0-rmse:46507.41347	validation_1-rmse:50800.79276
+[117]	validation_0-rmse:46491.26731	validation_1-rmse:50814.62109
+[118]	validation_0-rmse:46472.93710	validation_1-rmse:50808.66551
+[119]	validation_0-rmse:46466.52110	validation_1-rmse:50822.02270
+[120]	validation_0-rmse:46445.45840	validation_1-rmse:50823.24769
+[121]	validation_0-rmse:46438.58649	validation_1-rmse:50825.18668
+[122]	validation_0-rmse:46431.92802	validation_1-rmse:50810.27479
+[123]	validation_0-rmse:46420.86677	validation_1-rmse:50803.28035
+[124]	validation_0-rmse:46407.13161	validation_1-rmse:50810.77159
+[125]	validation_0-rmse:46398.43682	validation_1-rmse:50832.06384
+[126]	validation_0-rmse:46386.77604	validation_1-rmse:50817.74860
+[127]	validation_0-rmse:46377.56016	validation_1-rmse:50821.84138
+[128]	validation_0-rmse:46367.08410	validation_1-rmse:50837.15166
+[129]	validation_0-rmse:46350.66186	validation_1-rmse:50839.73873
+[130]	validation_0-rmse:46335.80575	validation_1-rmse:50845.77552
+[131]	validation_0-rmse:46326.73390	validation_1-rmse:50855.84757
+[132]	validation_0-rmse:46310.72771	validation_1-rmse:50865.13013
+[133]	validation_0-rmse:46299.51831	validation_1-rmse:50866.92615
+[134]	validation_0-rmse:46291.83067	validation_1-rmse:50878.41987
+[135]	validation_0-rmse:46286.50636	validation_1-rmse:50890.67783
+[136]	validation_0-rmse:46274.03171	validation_1-rmse:50882.73905
+[137]	validation_0-rmse:46266.66117	validation_1-rmse:50884.46656
+[138]	validation_0-rmse:46255.35450	validation_1-rmse:50887.84873
+[139]	validation_0-rmse:46247.18759	validation_1-rmse:50887.51656
+[140]	validation_0-rmse:46243.79635	validation_1-rmse:50880.58983
+[141]	validation_0-rmse:46236.41307	validation_1-rmse:50883.23123
+[142]	validation_0-rmse:46224.27219	validation_1-rmse:50879.56604
+[143]	validation_0-rmse:46216.65423	validation_1-rmse:50888.46852
+[144]	validation_0-rmse:46200.51150	validation_1-rmse:50906.34512
+[145]	validation_0-rmse:46194.84065	validation_1-rmse:50907.96652
+[146]	validation_0-rmse:46186.82861	validation_1-rmse:50929.30418
+[147]	validation_0-rmse:46184.48783	validation_1-rmse:50926.80177
+[148]	validation_0-rmse:46176.13167	validation_1-rmse:50924.50625
+[149]	validation_0-rmse:46163.89031	validation_1-rmse:50923.48711
+[150]	validation_0-rmse:46155.75488	validation_1-rmse:50923.14319
+[151]	validation_0-rmse:46139.88869	validation_1-rmse:50919.11529
+[152]	validation_0-rmse:46133.67184	validation_1-rmse:50937.04793
+[153]	validation_0-rmse:46125.22987	validation_1-rmse:50940.45805
+[154]	validation_0-rmse:46119.31758	validation_1-rmse:50940.96320
+[155]	validation_0-rmse:46115.96485	validation_1-rmse:50949.88796
+[156]	validation_0-rmse:46107.59355	validation_1-rmse:50949.11195
+[157]	validation_0-rmse:46102.20653	validation_1-rmse:50950.09012
+[158]	validation_0-rmse:46093.34391	validation_1-rmse:50943.11965
+[159]	validation_0-rmse:46089.05221	validation_1-rmse:50947.90897
+[160]	validation_0-rmse:46079.54485	validation_1-rmse:50944.13610
+[161]	validation_0-rmse:46078.73606	validation_1-rmse:50944.47403
+[162]	validation_0-rmse:46070.09481	validation_1-rmse:50944.60798
+[163]	validation_0-rmse:46062.20349	validation_1-rmse:50933.50927
+[164]	validation_0-rmse:46054.46390	validation_1-rmse:50929.81438
+[165]	validation_0-rmse:46046.84409	validation_1-rmse:50924.10639
+[166]	validation_0-rmse:46042.86553	validation_1-rmse:50926.86221
+[167]	validation_0-rmse:46038.75816	validation_1-rmse:50930.38795
+[168]	validation_0-rmse:46031.73948	validation_1-rmse:50928.90378
+[169]	validation_0-rmse:46027.34600	validation_1-rmse:50925.64643
+[170]	validation_0-rmse:46017.34862	validation_1-rmse:50932.13063
+[171]	validation_0-rmse:46011.78548	validation_1-rmse:50938.11360
+[172]	validation_0-rmse:46001.01361	validation_1-rmse:50956.51197
+[173]	validation_0-rmse:45995.80589	validation_1-rmse:50965.23798
+[174]	validation_0-rmse:45988.72858	validation_1-rmse:50967.32701
+[175]	validation_0-rmse:45978.28313	validation_1-rmse:50966.11000
+[176]	validation_0-rmse:45970.53130	validation_1-rmse:50972.32005
+[177]	validation_0-rmse:45954.69097	validation_1-rmse:50975.37687
+[178]	validation_0-rmse:45950.78199	validation_1-rmse:50980.94336
+[179]	validation_0-rmse:45943.94089	validation_1-rmse:50973.41672
+[180]	validation_0-rmse:45938.92542	validation_1-rmse:50976.64643
+[181]	validation_0-rmse:45931.35651	validation_1-rmse:50977.03135
+[182]	validation_0-rmse:45920.86179	validation_1-rmse:50996.98425
+[183]	validation_0-rmse:45912.80426	validation_1-rmse:50996.71713
+[184]	validation_0-rmse:45906.77127	validation_1-rmse:51016.64910
+[185]	validation_0-rmse:45898.23393	validation_1-rmse:51019.90727
+[186]	validation_0-rmse:45892.09184	validation_1-rmse:51024.31844
+[187]	validation_0-rmse:45885.55362	validation_1-rmse:51026.67404
+[188]	validation_0-rmse:45879.47615	validation_1-rmse:51035.34321
+[189]	validation_0-rmse:45874.31827	validation_1-rmse:51039.15588
+[190]	validation_0-rmse:45871.68536	validation_1-rmse:51043.80255
+[191]	validation_0-rmse:45866.86017	validation_1-rmse:51049.30049
+[192]	validation_0-rmse:45863.53201	validation_1-rmse:51065.82528
+[193]	validation_0-rmse:45859.04261	validation_1-rmse:51078.47411
+[194]	validation_0-rmse:45854.19144	validation_1-rmse:51091.05319
+[195]	validation_0-rmse:45851.31990	validation_1-rmse:51109.35551
+[196]	validation_0-rmse:45848.02115	validation_1-rmse:51109.91592
+[197]	validation_0-rmse:45839.19185	validation_1-rmse:51103.90782
+[198]	validation_0-rmse:45832.59041	validation_1-rmse:51096.36916
+[199]	validation_0-rmse:45829.90983	validation_1-rmse:51095.23113
 
 Training completed!
 
 Training Metrics:
-  MAE:  $24,880
-  RMSE: $36,207
-  R2:   0.7052
-  MAPE: 20.32%
-  Median AE: $17,467
+  MAE:  $34,076
+  RMSE: $45,830
+  R2:   0.5227
+  MAPE: 25.91%
+  Median AE: $26,973
 
 Validation Metrics:
-  MAE:  $35,513
-  RMSE: $48,979
-  R2:   0.3962
-  MAPE: 28.04%
-  Median AE: $25,421
+  MAE:  $37,959
+  RMSE: $51,095
+  R2:   0.4271
+  MAPE: 28.37%
+  Median AE: $30,497
 
 Evaluating on test set...
 
-Evaluating on 459 test samples...
+Evaluating on 2086 test samples...
 
 Test Metrics:
-  MAE:  $39,616
-  RMSE: $54,819
-  R2:   0.3700
-  MAPE: 29.16%
-  Median AE: $29,395
+  MAE:  $36,255
+  RMSE: $47,604
+  R2:   0.4462
+  MAPE: 28.12%
+  Median AE: $29,261
 
 Top 15 Most Important Features:
-  estimated_yoe: 0.0709
-  is_principal: 0.0687
-  is_director: 0.0660
-  is_entry: 0.0660
-  skill_deep_learning: 0.0644
-  role_engineer: 0.0614
-  is_staff: 0.0610
-  company_tier_encoded: 0.0549
-  role_researcher: 0.0432
-  skill_computer_vision: 0.0388
-  skill_traditional_ml: 0.0352
-  role_scientist: 0.0352
-  skill_nlp: 0.0282
-  col_multiplier: 0.0282
-  role_analyst: 0.0278
-Model saved to models/salary_model_20251126_190734.pkl
+  company_tier_encoded: 0.1760
+  is_director: 0.0946
+  is_entry: 0.0897
+  role_engineer: 0.0623
+  is_secondary_hub: 0.0604
+  is_staff: 0.0598
+  is_major_tech_hub: 0.0490
+  is_principal: 0.0489
+  role_analyst: 0.0339
+  role_architect: 0.0270
+  role_scientist: 0.0264
+  year: 0.0244
+  is_lead: 0.0233
+  is_manager: 0.0232
+  is_senior: 0.0227
+Model saved to models/salary_model_20251126_193015.pkl
 
-MLFlow run completed: c2474530b51243efa44e82feed50d809
+MLFlow run completed: 87150a262e454a9894ef55c8e6126daa
 
 Model training complete!

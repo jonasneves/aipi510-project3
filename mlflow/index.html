@@ -18,11 +18,11 @@
     </head>
     <body>
         <h1>MLflow Training Report</h1>
-        <p><strong>Experiment:</strong> salary_prediction &middot; <strong>Run ID:</strong> c2474530b51243efa44e82feed50d809</p>
+        <p><strong>Experiment:</strong> salary_prediction &middot; <strong>Run ID:</strong> 87150a262e454a9894ef55c8e6126daa</p>
         <div class="grid">
             <div class="card"><strong>Status</strong><br>FINISHED</div>
-            <div class="card"><strong>Start</strong><br>2025-11-26 19:07:34Z</div>
-            <div class="card"><strong>End</strong><br>2025-11-26 19:07:34Z</div>
+            <div class="card"><strong>Start</strong><br>2025-11-26 19:30:15Z</div>
+            <div class="card"><strong>End</strong><br>2025-11-26 19:30:15Z</div>
             <div class="card"><strong>User</strong><br>runner</div>
         </div>
 
@@ -43,8 +43,8 @@
 <tr><td>reg_alpha</td><td>0.1</td></tr>
 <tr><td>reg_lambda</td><td>1.0</td></tr>
 <tr><td>subsample</td><td>0.8</td></tr>
-<tr><td>test_samples</td><td>459</td></tr>
-<tr><td>train_samples</td><td>2137</td></tr>
+<tr><td>test_samples</td><td>2086</td></tr>
+<tr><td>train_samples</td><td>9734</td></tr>
       </tbody>
     </table>
     
@@ -55,12 +55,12 @@
     <table>
       <thead><tr><th>Metric</th><th>Value</th></tr></thead>
       <tbody>
-        <tr><td>mae</td><td>24,879.8868</td></tr>
-<tr><td>mape</td><td>20.3176</td></tr>
-<tr><td>median_ae</td><td>17,466.8078</td></tr>
-<tr><td>n_samples</td><td>2,137.0000</td></tr>
-<tr><td>r2</td><td>0.7052</td></tr>
-<tr><td>rmse</td><td>36,207.2673</td></tr>
+        <tr><td>mae</td><td>34,075.6458</td></tr>
+<tr><td>mape</td><td>25.9149</td></tr>
+<tr><td>median_ae</td><td>26,972.7328</td></tr>
+<tr><td>n_samples</td><td>9,734.0000</td></tr>
+<tr><td>r2</td><td>0.5227</td></tr>
+<tr><td>rmse</td><td>45,829.9098</td></tr>
       </tbody>
     </table>
     
@@ -69,12 +69,12 @@
     <table>
       <thead><tr><th>Metric</th><th>Value</th></tr></thead>
       <tbody>
-        <tr><td>mae</td><td>35,513.2864</td></tr>
-<tr><td>mape</td><td>28.0432</td></tr>
-<tr><td>median_ae</td><td>25,421.0742</td></tr>
-<tr><td>n_samples</td><td>458.0000</td></tr>
-<tr><td>r2</td><td>0.3962</td></tr>
-<tr><td>rmse</td><td>48,979.0743</td></tr>
+        <tr><td>mae</td><td>37,959.0334</td></tr>
+<tr><td>mape</td><td>28.3712</td></tr>
+<tr><td>median_ae</td><td>30,496.8750</td></tr>
+<tr><td>n_samples</td><td>2,086.0000</td></tr>
+<tr><td>r2</td><td>0.4271</td></tr>
+<tr><td>rmse</td><td>51,095.2312</td></tr>
       </tbody>
     </table>
     
@@ -83,11 +83,11 @@
     <table>
       <thead><tr><th>Metric</th><th>Value</th></tr></thead>
       <tbody>
-        <tr><td>mae</td><td>39,615.5382</td></tr>
-<tr><td>mape</td><td>29.1632</td></tr>
-<tr><td>median_ae</td><td>29,395.0938</td></tr>
-<tr><td>r2</td><td>0.3700</td></tr>
-<tr><td>rmse</td><td>54,818.8749</td></tr>
+        <tr><td>mae</td><td>36,255.2791</td></tr>
+<tr><td>mape</td><td>28.1221</td></tr>
+<tr><td>median_ae</td><td>29,261.2134</td></tr>
+<tr><td>r2</td><td>0.4462</td></tr>
+<tr><td>rmse</td><td>47,603.7482</td></tr>
       </tbody>
     </table>
     
@@ -98,21 +98,21 @@
     <table>
       <thead><tr><th>Feature</th><th>Importance</th></tr></thead>
       <tbody>
-        <tr><td>estimated_yoe</td><td>0.0709</td></tr>
-<tr><td>is_principal</td><td>0.0687</td></tr>
-<tr><td>is_director</td><td>0.0660</td></tr>
-<tr><td>is_entry</td><td>0.0660</td></tr>
-<tr><td>skill_deep_learning</td><td>0.0644</td></tr>
-<tr><td>role_engineer</td><td>0.0614</td></tr>
-<tr><td>is_staff</td><td>0.0610</td></tr>
-<tr><td>company_tier_encoded</td><td>0.0549</td></tr>
-<tr><td>role_researcher</td><td>0.0432</td></tr>
-<tr><td>skill_computer_vision</td><td>0.0388</td></tr>
-<tr><td>skill_traditional_ml</td><td>0.0352</td></tr>
-<tr><td>role_scientist</td><td>0.0352</td></tr>
-<tr><td>skill_nlp</td><td>0.0282</td></tr>
-<tr><td>col_multiplier</td><td>0.0282</td></tr>
-<tr><td>role_analyst</td><td>0.0278</td></tr>
+        <tr><td>company_tier_encoded</td><td>0.1760</td></tr>
+<tr><td>is_director</td><td>0.0946</td></tr>
+<tr><td>is_entry</td><td>0.0897</td></tr>
+<tr><td>role_engineer</td><td>0.0623</td></tr>
+<tr><td>is_secondary_hub</td><td>0.0604</td></tr>
+<tr><td>is_staff</td><td>0.0598</td></tr>
+<tr><td>is_major_tech_hub</td><td>0.0490</td></tr>
+<tr><td>is_principal</td><td>0.0489</td></tr>
+<tr><td>role_analyst</td><td>0.0339</td></tr>
+<tr><td>role_architect</td><td>0.0270</td></tr>
+<tr><td>role_scientist</td><td>0.0264</td></tr>
+<tr><td>year</td><td>0.0244</td></tr>
+<tr><td>is_lead</td><td>0.0233</td></tr>
+<tr><td>is_manager</td><td>0.0232</td></tr>
+<tr><td>is_senior</td><td>0.0227</td></tr>
       </tbody>
     </table>
     
@@ -121,42 +121,42 @@
         <h2>Recent Training Log</h2>
         <pre>
 Validation Metrics:
-  MAE:  $35,513
-  RMSE: $48,979
-  R2:   0.3962
-  MAPE: 28.04%
-  Median AE: $25,421
+  MAE:  $37,959
+  RMSE: $51,095
+  R2:   0.4271
+  MAPE: 28.37%
+  Median AE: $30,497
 
 Evaluating on test set...
 
-Evaluating on 459 test samples...
+Evaluating on 2086 test samples...
 
 Test Metrics:
-  MAE:  $39,616
-  RMSE: $54,819
-  R2:   0.3700
-  MAPE: 29.16%
-  Median AE: $29,395
+  MAE:  $36,255
+  RMSE: $47,604
+  R2:   0.4462
+  MAPE: 28.12%
+  Median AE: $29,261
 
 Top 15 Most Important Features:
-  estimated_yoe: 0.0709
-  is_principal: 0.0687
-  is_director: 0.0660
-  is_entry: 0.0660
-  skill_deep_learning: 0.0644
-  role_engineer: 0.0614
-  is_staff: 0.0610
-  company_tier_encoded: 0.0549
-  role_researcher: 0.0432
-  skill_computer_vision: 0.0388
-  skill_traditional_ml: 0.0352
-  role_scientist: 0.0352
-  skill_nlp: 0.0282
-  col_multiplier: 0.0282
-  role_analyst: 0.0278
-Model saved to models/salary_model_20251126_190734.pkl
+  company_tier_encoded: 0.1760
+  is_director: 0.0946
+  is_entry: 0.0897
+  role_engineer: 0.0623
+  is_secondary_hub: 0.0604
+  is_staff: 0.0598
+  is_major_tech_hub: 0.0490
+  is_principal: 0.0489
+  role_analyst: 0.0339
+  role_architect: 0.0270
+  role_scientist: 0.0264
+  year: 0.0244
+  is_lead: 0.0233
+  is_manager: 0.0232
+  is_senior: 0.0227
+Model saved to models/salary_model_20251126_193015.pkl
 
-MLFlow run completed: c2474530b51243efa44e82feed50d809
+MLFlow run completed: 87150a262e454a9894ef55c8e6126daa
 
 Model training complete!</pre>
         
