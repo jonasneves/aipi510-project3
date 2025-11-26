@@ -1,12 +1,12 @@
 {
-  "generated_at": "2025-11-26T17:32:00.294491Z",
+  "generated_at": "2025-11-26T17:40:06.649984Z",
   "experiment": "salary_prediction",
   "tracking_uri": "file:/home/runner/work/aipi510-project3/aipi510-project3/mlruns",
   "run": {
-    "run_id": "66688cb74a8347b8a7fd48cea6d18038",
+    "run_id": "da207debcca34e868bc051e91e86f135",
     "status": "FINISHED",
-    "start_time": "2025-11-26 17:31:58Z",
-    "end_time": "2025-11-26 17:31:59Z",
+    "start_time": "2025-11-26 17:40:05Z",
+    "end_time": "2025-11-26 17:40:05Z",
     "user": "runner",
     "params": {
       "train_samples": "2137",
