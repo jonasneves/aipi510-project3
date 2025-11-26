@@ -1,0 +1,109 @@
+{
+  "generated_at": "2025-11-26T17:14:14.000169Z",
+  "experiment": "salary_prediction",
+  "tracking_uri": "file:/home/runner/work/aipi510-project3/aipi510-project3/mlruns",
+  "run": {
+    "run_id": "f379041f13694e6c8ab45870454cc7fa",
+    "status": "FINISHED",
+    "start_time": "2025-11-26 17:14:12Z",
+    "end_time": "2025-11-26 17:14:12Z",
+    "user": "runner",
+    "params": {
+      "train_samples": "2137",
+      "reg_alpha": "0.1",
+      "subsample": "0.8",
+      "n_estimators": "200",
+      "colsample_bytree": "0.8",
+      "n_features": "29",
+      "min_child_weight": "3",
+      "test_samples": "459",
+      "random_state": "42",
+      "learning_rate": "0.1",
+      "objective": "reg:squarederror",
+      "reg_lambda": "1.0",
+      "max_depth": "6",
+      "n_jobs": "-1"
+    },
+    "metrics": {
+      "val_mape": 28.04317477760237,
+      "val_r2": 0.39624987151333746,
+      "train_n_samples": 2137.0,
+      "test_mae": 39615.53819750818,
+      "train_r2": 0.7051590684827622,
+      "val_rmse": 48979.07429385104,
+      "train_mape": 20.31761040101081,
+      "val_median_ae": 25421.07421875,
+      "test_median_ae": 29395.09375,
+      "train_rmse": 36207.267347291345,
+      "val_mae": 35513.28644343613,
+      "test_r2": 0.3699832885876554,
+      "train_mae": 24879.886772929338,
+      "val_n_samples": 458.0,
+      "train_median_ae": 17466.807812500017,
+      "test_rmse": 54818.87489073174,
+      "test_mape": 29.163208929760536
+    }
+  },
+  "feature_importance": [
+    {
+      "feature": "estimated_yoe",
+      "importance": 0.070874654
+    },
+    {
+      "feature": "is_principal",
+      "importance": 0.06869303
+    },
+    {
+      "feature": "is_director",
+      "importance": 0.06599691
+    },
+    {
+      "feature": "is_entry",
+      "importance": 0.06598186
+    },
+    {
+      "feature": "skill_deep_learning",
+      "importance": 0.06440754
+    },
+    {
+      "feature": "role_engineer",
+      "importance": 0.061421715
+    },
+    {
+      "feature": "is_staff",
+      "importance": 0.060972646
+    },
+    {
+      "feature": "company_tier_encoded",
+      "importance": 0.05491447
+    },
+    {
+      "feature": "role_researcher",
+      "importance": 0.04322365
+    },
+    {
+      "feature": "skill_computer_vision",
+      "importance": 0.03877207
+    },
+    {
+      "feature": "skill_traditional_ml",
+      "importance": 0.03523412
+    },
+    {
+      "feature": "role_scientist",
+      "importance": 0.03517851
+    },
+    {
+      "feature": "skill_nlp",
+      "importance": 0.028183278
+    },
+    {
+      "feature": "col_multiplier",
+      "importance": 0.028155254
+    },
+    {
+      "feature": "role_analyst",
+      "importance": 0.027845846
+    }
+  ]
+}
