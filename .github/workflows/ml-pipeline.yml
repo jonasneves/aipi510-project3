@@ -391,39 +391,16 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Check S3 cache for merged data
-      - name: Check S3 cache
+      # Always run merge to ensure latest data is used
+      - name: Prepare merge
         id: check-cache
         run: |
           mkdir -p data/merged
 
-          PROFILE="${{ inputs.training_profile }}"
-
-          # Force merge if profile is specified (to ensure correct data sources)
-          if [ -n "$PROFILE" ] && [ "$PROFILE" != "all" ]; then
-            echo "source=merge" >> $GITHUB_OUTPUT
-            echo "Profile-specific merge required: $PROFILE"
-          elif [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "source=merge" >> $GITHUB_OUTPUT
-            echo "PR build - will run merge"
-          elif [ -n "${{ needs.collect.outputs.collect_sources }}" ]; then
-            echo "source=merge" >> $GITHUB_OUTPUT
-            echo "Fresh data collected - will run merge"
-          else
-            # Only use S3 cache for 'all' profile with no fresh data
-            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/merged/ data/merged/ 2>/dev/null; then
-              if [ -f "data/merged/merged_salary_data.parquet" ]; then
-                echo "source=s3" >> $GITHUB_OUTPUT
-                echo "Using cached merged data from S3 (all sources)"
-              else
-                echo "source=merge" >> $GITHUB_OUTPUT
-                echo "S3 cache empty - will run merge"
-              fi
-            else
-              echo "source=merge" >> $GITHUB_OUTPUT
-              echo "S3 not available - will run merge"
-            fi
-          fi
+          # Always run fresh merge (fast operation, ensures latest data)
+          # This avoids stale cache issues when source data is updated
+          echo "source=merge" >> $GITHUB_OUTPUT
+          echo "Running fresh merge with latest data"
 
       - uses: actions/download-artifact@v4
         if: steps.check-cache.outputs.source == 'merge'
