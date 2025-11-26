@@ -1,7 +1,7 @@
 /opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/tracking/_tracking_service/utils.py:140: FutureWarning: Filesystem tracking backend (e.g., './mlruns') is deprecated. Please switch to a database backend (e.g., 'sqlite:///mlflow.db'). For feedback, see: https://github.com/mlflow/mlflow/issues/18534
   return FileStore(store_uri, store_uri)
-2025/11/26 17:21:12 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
-2025-11-26 17:21:12,028 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251126_172112.log
+2025/11/26 17:31:56 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
+2025-11-26 17:31:56,896 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251126_173156.log
 --- Model Training ---
 
 MLFlow tracking URI: file:./mlruns
@@ -25,7 +25,7 @@ Creating train/test split...
   Test:  459 samples (15.0%)
 
 Training XGBoost model...
-MLFlow run ID: aed053b0669447259ec9a627271d79a5
+MLFlow run ID: 66688cb74a8347b8a7fd48cea6d18038
 Training XGBoost salary prediction model...
 Training samples: 2137
 Features: 29
@@ -274,8 +274,8 @@ Top 15 Most Important Features:
   skill_nlp: 0.0282
   col_multiplier: 0.0282
   role_analyst: 0.0278
-Model saved to models/salary_model_20251126_172114.pkl
+Model saved to models/salary_model_20251126_173159.pkl
 
-MLFlow run completed: aed053b0669447259ec9a627271d79a5
+MLFlow run completed: 66688cb74a8347b8a7fd48cea6d18038
 
 Model training complete!
