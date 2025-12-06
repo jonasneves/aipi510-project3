@@ -1,8 +1,9 @@
 # AI Salary Prediction Pipeline
 
-[![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
 [![API Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/api&label=API)](https://aisalary.neevs.io/api)
 [![App Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/app&label=App)](https://aisalary.neevs.io)
+
+[![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
 
 **Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs) | [Reports Portal (EDA + MLflow)](https://jonasneves.github.io/aipi510-project3/)
 

@@ -24,13 +24,21 @@ on:
         required: false
         default: 'true'
         type: boolean
+      instances:
+        description: 'Number of parallel instances (1-2 for redundancy)'
+        required: false
+        default: '1'
+        type: choice
+        options:
+          - '1'
+          - '2'
   # Programmatic restart (for timeout rotation)
   repository_dispatch:
     types: [restart-tunnel]
 
 concurrency:
   group: live-demo
-  cancel-in-progress: true  # Cancel old run when new code is pushed
+  cancel-in-progress: false  # Allow graceful handoff between old and new instances
 
 env:
   AWS_REGION: us-east-1
@@ -38,8 +46,13 @@ env:
 
 jobs:
   host:
+    name: Live Server #${{ matrix.instance }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    strategy:
+      matrix:
+        instance: ${{ fromJson((github.event.client_payload.instances || github.event.inputs.instances || '1') == '2' && '[1,2]' || '[1]') }}
+      fail-fast: false
 
     permissions:
       id-token: write
@@ -47,6 +60,33 @@ jobs:
       actions: write
 
     steps:
+      - name: Find previous running workflow
+        id: find_previous
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Current run ID: ${{ github.run_id }}"
+
+          # Find other running instances of this workflow (excluding current run)
+          API_RESPONSE=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/tunnel-hosting.yml/runs?status=in_progress")
+
+          RUN_COUNT=$(echo "$API_RESPONSE" | jq '.total_count')
+          echo "Total in_progress runs found: $RUN_COUNT"
+
+          # Only consider strictly older runs to avoid cross-cancelling newer runs
+          PREVIOUS_RUN_ID=$(echo "$API_RESPONSE" | jq -r ".workflow_runs[] | select(.id < ${{ github.run_id }}) | .id" | head -1)
+
+          if [ -n "$PREVIOUS_RUN_ID" ] && [ "$PREVIOUS_RUN_ID" != "null" ] && [ "$PREVIOUS_RUN_ID" != "" ]; then
+            echo "Found previous running workflow: $PREVIOUS_RUN_ID"
+            echo "previous_run_id=$PREVIOUS_RUN_ID" >> $GITHUB_OUTPUT
+          else
+            echo "No previous running workflow found"
+            echo "previous_run_id=" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Set up Python
@@ -213,8 +253,39 @@ jobs:
           echo "=== Tunnel Log (first 50 lines) ==="
           head -50 /tmp/tunnel.log || true
 
+          # Graceful handoff: Cancel previous workflow now that new instance is healthy
+          PREVIOUS_RUN_ID="${{ steps.find_previous.outputs.previous_run_id }}"
+          if [ -n "$PREVIOUS_RUN_ID" ]; then
+            echo ""
+            echo "=========================================="
+            echo "New server is ready, cancelling previous workflow run: $PREVIOUS_RUN_ID"
+            echo "=========================================="
+
+            RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/actions/runs/$PREVIOUS_RUN_ID/cancel")
+
+            HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+
+            if [ "$HTTP_CODE" = "202" ]; then
+              echo ""
+              echo "✓ Previous workflow cancellation accepted"
+              echo "Waiting 3 minutes for graceful handoff..."
+              for i in {1..18}; do
+                printf "  Handoff wait: %d/180 seconds...\r" "$((i * 10))"
+                sleep 10
+              done
+              echo ""
+              echo "Handoff complete. This instance is now primary."
+            else
+              echo "⚠ Cancel request returned code $HTTP_CODE"
+              sleep 5
+            fi
+          fi
+
           # Calculate duration
-          HOURS="${{ github.event.inputs.duration_hours || '5.5' }}"
+          HOURS="${{ github.event.client_payload.duration_hours || github.event.inputs.duration_hours || '5.5' }}"
           DURATION=$(echo "$HOURS * 3600" | bc | cut -d. -f1)
           # Trigger restart 6 minutes before timeout (3 min handoff wait + 3 min buffer)
           RESTART_THRESHOLD=$((DURATION - 360))
@@ -222,10 +293,13 @@ jobs:
           RESTART_TRIGGERED=false
 
           # Auto-restart defaults to true unless explicitly set to false
-          AUTO_RESTART="${{ github.event.inputs.auto_restart }}"
+          AUTO_RESTART="${{ github.event.client_payload.auto_restart || github.event.inputs.auto_restart }}"
           if [ -z "$AUTO_RESTART" ]; then
             AUTO_RESTART="true"
           fi
+
+          # Store instances count for restart trigger
+          INSTANCES="${{ github.event.client_payload.instances || github.event.inputs.instances || '1' }}"
 
           echo ""
           echo "=========================================="
@@ -279,8 +353,8 @@ jobs:
               sleep 5
             fi
 
-            # Trigger restart before timeout
-            if [ "$ELAPSED" -gt "$RESTART_THRESHOLD" ] && [ "$RESTART_TRIGGERED" = "false" ]; then
+            # Trigger restart before timeout (only from instance #1 to avoid multiple dispatches)
+            if [ "$ELAPSED" -gt "$RESTART_THRESHOLD" ] && [ "$RESTART_TRIGGERED" = "false" ] && [ "${{ matrix.instance }}" = "1" ]; then
               if [ "$AUTO_RESTART" = "true" ]; then
                 echo ""
                 echo "=========================================="
@@ -309,7 +383,7 @@ jobs:
                     -H "Authorization: Bearer $PAT_TOKEN" \
                     -H "X-GitHub-Api-Version: 2022-11-28" \
                     https://api.github.com/repos/${{ github.repository }}/dispatches \
-                    -d '{"event_type":"restart-tunnel"}' \
+                    -d "{\"event_type\":\"restart-tunnel\",\"client_payload\":{\"duration_hours\":\"$HOURS\",\"auto_restart\":$([ \"$AUTO_RESTART\" = \"true\" ] && echo \"true\" || echo \"false\"),\"instances\":\"$INSTANCES\"}}" \
                     -w "\nHTTP_STATUS:%{http_code}" 2>&1)
 
                   HTTP_CODE=$(echo "$RESPONSE" | grep "HTTP_STATUS:" | cut -d: -f2)
