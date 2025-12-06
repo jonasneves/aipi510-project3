@@ -36,10 +36,6 @@ on:
   repository_dispatch:
     types: [restart-tunnel]
 
-concurrency:
-  group: live-demo
-  cancel-in-progress: false  # Allow graceful handoff between old and new instances
-
 env:
   AWS_REGION: us-east-1
   S3_BUCKET: ai-salary-predictor
