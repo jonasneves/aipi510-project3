@@ -1,22 +1,22 @@
 {
-  "generated_at": "2025-12-06T20:24:07.323107Z",
+  "generated_at": "2025-12-06T20:33:10.640364Z",
   "experiment": "salary_prediction",
   "tracking_uri": "file:/home/runner/work/aipi510-project3/aipi510-project3/mlruns",
   "run": {
-    "run_id": "c4432b72c85546a8907b17e4710c4d98",
+    "run_id": "802c1d1d02144f3e8d3c24cda9c06899",
     "status": "FINISHED",
-    "start_time": "2025-12-06 20:24:05Z",
-    "end_time": "2025-12-06 20:24:06Z",
+    "start_time": "2025-12-06 20:33:09Z",
+    "end_time": "2025-12-06 20:33:09Z",
     "user": "runner",
     "params": {
-      "train_samples": "10274",
+      "train_samples": "8322",
       "reg_alpha": "0.1",
       "subsample": "0.8",
       "n_estimators": "200",
       "colsample_bytree": "0.8",
       "n_features": "29",
       "min_child_weight": "3",
-      "test_samples": "2202",
+      "test_samples": "1784",
       "random_state": "42",
       "learning_rate": "0.1",
       "objective": "reg:squarederror",
@@ -25,85 +25,85 @@
       "n_jobs": "-1"
     },
     "metrics": {
-      "val_mape": 35.28028118512417,
-      "val_r2": 0.2448028964974639,
-      "train_n_samples": 10274.0,
-      "test_mae": 47824.88451112152,
-      "train_r2": 0.4741580456382809,
-      "val_rmse": 73763.75903202557,
-      "train_mape": 30.591909095309237,
-      "val_median_ae": 36620.19203125,
-      "test_median_ae": 33893.71171875,
-      "train_rmse": 61449.471373822445,
-      "val_mae": 50124.3069829038,
-      "test_r2": 0.27463961742964893,
-      "train_mae": 42142.804957746295,
-      "val_n_samples": 2202.0,
-      "train_median_ae": 31858.546875,
-      "test_rmse": 72014.40021016596,
-      "test_mape": 34.713626709407905
+      "val_mape": 28.673786965934333,
+      "val_r2": 0.4274000138859375,
+      "train_n_samples": 8322.0,
+      "test_mae": 41108.62131253504,
+      "train_r2": 0.5779811344144593,
+      "val_rmse": 60751.74003352885,
+      "train_mape": 25.80862486426077,
+      "val_median_ae": 31116.391875,
+      "test_median_ae": 31558.613749999997,
+      "train_rmse": 48036.00540070851,
+      "val_mae": 42097.10988652023,
+      "test_r2": 0.44731484407631683,
+      "train_mae": 35521.123491323204,
+      "val_n_samples": 1784.0,
+      "train_median_ae": 28110.43343749999,
+      "test_rmse": 57292.74561510693,
+      "test_mape": 28.976613088357322
     }
   },
   "feature_importance": [
     {
       "feature": "company_tier_encoded",
-      "importance": 0.1466332
-    },
-    {
-      "feature": "is_director",
-      "importance": 0.07944023
+      "importance": 0.1641945
     },
     {
       "feature": "is_secondary_hub",
-      "importance": 0.07422891
+      "importance": 0.09400859
     },
     {
-      "feature": "is_staff",
-      "importance": 0.0585003
-    },
-    {
-      "feature": "is_principal",
-      "importance": 0.055042226
+      "feature": "is_director",
+      "importance": 0.09319054
     },
     {
       "feature": "is_entry",
-      "importance": 0.053113353
+      "importance": 0.056584768
+    },
+    {
+      "feature": "is_staff",
+      "importance": 0.050070863
     },
     {
       "feature": "skill_deep_learning",
-      "importance": 0.04636791
+      "importance": 0.04099406
     },
     {
-      "feature": "role_engineer",
-      "importance": 0.041211728
-    },
-    {
-      "feature": "skill_count",
-      "importance": 0.02923731
+      "feature": "is_principal",
+      "importance": 0.039787635
     },
     {
       "feature": "role_analyst",
-      "importance": 0.029214596
+      "importance": 0.03685282
     },
     {
-      "feature": "is_lead",
-      "importance": 0.028916128
+      "feature": "role_engineer",
+      "importance": 0.036346704
     },
     {
-      "feature": "estimated_yoe",
-      "importance": 0.027619926
+      "feature": "skill_count",
+      "importance": 0.035442702
     },
     {
       "feature": "role_scientist",
-      "importance": 0.027436825
+      "importance": 0.024669737
     },
     {
-      "feature": "state_clean_encoded",
-      "importance": 0.024858776
+      "feature": "skill_big_data",
+      "importance": 0.02312033
+    },
+    {
+      "feature": "is_manager",
+      "importance": 0.022889107
+    },
+    {
+      "feature": "estimated_yoe",
+      "importance": 0.022702966
     },
     {
       "feature": "year",
-      "importance": 0.024739906
+      "importance": 0.021650197
     }
   ]
 }
