@@ -1,0 +1,36 @@
+{
+  "merged": {
+    "records": 12254,
+    "columns": 17,
+    "memory_mb": 7.000768661499023,
+    "salary": {
+      "count": 12254,
+      "mean": 163139.04516076384,
+      "median": 152618.13,
+      "std": 78726.41993743014,
+      "min": 35000.0,
+      "max": 577200.0,
+      "q25": 109000.0,
+      "q75": 200000.0
+    },
+    "missing_pct": {
+      "job_title": 0.0,
+      "employer_name": 0.0,
+      "location_city": 8.895054676024156,
+      "location_state": 2.415537783580872,
+      "annual_salary": 0.0,
+      "year": 0.0,
+      "soc_code": 99.51036396278766,
+      "data_source": 0.0,
+      "source_priority": 0.0,
+      "seniority_level": 91.10494532397585,
+      "employment_type": 91.10494532397585,
+      "job_function": 91.10494532397585,
+      "industries": 91.10494532397585,
+      "education": 91.10494532397585,
+      "estimated_yoe": 94.45079157826017,
+      "skills": 91.10494532397585,
+      "quality_score": 0.0
+    }
+  }
+}
