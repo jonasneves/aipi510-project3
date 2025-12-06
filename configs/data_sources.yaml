@@ -96,6 +96,7 @@ sources:
       annual_salary: annual_salary
       year: year
       soc_code: null
+      job_url: job_url
       seniority_level: seniority_level
       employment_type: employment_type
       job_function: job_function
@@ -157,6 +158,10 @@ merge_strategy:
       - employer_name
       - location_state
       - year
+      - annual_salary  # Include salary to avoid over-collapsing distinct records
+      - job_url        # For LinkedIn, keeps unique postings
+    # Deduplicate within each source to prevent cross-source collapse
+    group_by_source: true
     # Fuzzy matching threshold (0-1, higher = stricter)
     similarity_threshold: 0.85
     # Which source to prefer when duplicates found (by priority)

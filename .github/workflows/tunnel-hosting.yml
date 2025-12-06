@@ -36,10 +36,6 @@ on:
   repository_dispatch:
     types: [restart-tunnel]
 
-concurrency:
-  group: live-demo
-  cancel-in-progress: false  # Allow graceful handoff between old and new instances
-
 env:
   AWS_REGION: us-east-1
   S3_BUCKET: ai-salary-predictor
@@ -47,7 +43,7 @@ env:
 jobs:
   host:
     name: Live Server #${{ matrix.instance }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 350
     strategy:
       matrix:
@@ -122,14 +118,37 @@ jobs:
         id: cloudflared-cache
         with:
           path: /usr/local/bin/cloudflared
-          key: cloudflared-linux-amd64-v1
+          key: cloudflared-linux-arm64-v1
+
+      # Cache pip packages for faster installs
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements-runtime.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-
+            pip-${{ runner.os }}-
+
+      # Cache spaCy model
+      - name: Cache spaCy model
+        uses: actions/cache@v4
+        id: spacy-cache
+        with:
+          path: |
+            ~/.cache/spacy
+            ~/spacy_data
+          key: spacy-en_core_web_sm-v3-${{ runner.arch }}
 
       - name: Install Python dependencies
         run: |
-          pip install -r requirements.txt
-          pip install uvicorn
+          # Use minimal runtime requirements for faster install
+          pip install -r requirements-runtime.txt
+          # Pre-compile Python bytecode for faster imports
+          python -m compileall -q src/ api/ || true
 
       - name: Download spaCy model
+        if: steps.spacy-cache.outputs.cache-hit != 'true'
         run: |
           echo "Downloading spaCy model for resume parsing..."
           python -m spacy download en_core_web_sm
@@ -192,7 +211,7 @@ jobs:
       - name: Install cloudflared
         if: steps.cloudflared-cache.outputs.cache-hit != 'true'
         run: |
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin/
 
@@ -234,7 +253,8 @@ jobs:
           # Start static file server on port 8501 (Cloudflare routes /* here)
           echo ""
           echo "=== Starting Frontend ==="
-          npx serve -s frontend-react/dist -l 8501 &
+          # Enable CORS for better performance
+          npx serve -s frontend-react/dist -l 8501 --cors &
           SERVE_PID=$!
           echo "Frontend PID: $SERVE_PID"
           sleep 3
@@ -343,7 +363,7 @@ jobs:
             if [ "$FRONTEND_OK" = "DOWN" ]; then
               echo "Restarting Frontend..."
               pkill -f "serve.*8501" || true
-              npx serve -s frontend-react/dist -l 8501 &
+              npx serve -s frontend-react/dist -l 8501 --cors &
               sleep 3
             fi
 
@@ -471,7 +491,7 @@ jobs:
 
   notify:
     needs: host
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     if: always()
     steps:
       - name: Session ended

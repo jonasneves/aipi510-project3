@@ -114,6 +114,68 @@ def extract_state(location: str) -> Optional[str]:
     return None
 
 
+def filter_ai_ml_jobs(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Filter to only AI/ML relevant jobs, excluding data entry and clerical positions.
+
+    Args:
+        df: DataFrame with job_title column
+
+    Returns:
+        Filtered DataFrame with only AI/ML relevant jobs
+    """
+    if df.empty or 'job_title' not in df.columns:
+        return df
+
+    # Include keywords - jobs that should be kept
+    ai_ml_keywords = [
+        'machine learning', 'ml engineer', 'data scientist', 'ai engineer',
+        'deep learning', 'nlp', 'natural language processing', 'computer vision',
+        'mlops', 'research scientist', 'applied scientist', 'ai research',
+        'neural network', 'tensorflow', 'pytorch', 'data science',
+        'artificial intelligence', 'quantitative', 'analytics engineer',
+        'modeling', 'algorithm', 'big data', 'hadoop', 'spark'
+    ]
+
+    # Exclude keywords - jobs that should be filtered out
+    exclude_keywords = [
+        'data entry', 'virtual assistant', 'clerk', 'typist', 'typing',
+        'checkout', 'fashion', 'administrative', 'capacitador', 'receptionist',
+        'medical office', 'office assistant', 'customer service', 'cashier',
+        'retail', 'sales associate', 'warehouse', 'driver', 'delivery',
+        'cleaner', 'janitor', 'security guard', 'restaurant', 'cook',
+        'dishwasher', 'barista', 'waiter', 'waitress', 'hostess'
+    ]
+
+    # Create lowercase title column for matching
+    df['_title_lower'] = df['job_title'].str.lower().fillna('')
+
+    # Must match at least one AI/ML keyword
+    include_mask = df['_title_lower'].apply(
+        lambda x: any(kw in str(x) for kw in ai_ml_keywords)
+    )
+
+    # Must NOT match any exclude keyword
+    exclude_mask = df['_title_lower'].apply(
+        lambda x: any(kw in str(x) for kw in exclude_keywords)
+    )
+
+    # Keep jobs that match AI/ML keywords AND don't match exclude keywords
+    filtered_df = df[include_mask & ~exclude_mask].drop('_title_lower', axis=1)
+
+    if len(df) > 0:
+        removed_count = len(df) - len(filtered_df)
+        removed_pct = (removed_count / len(df)) * 100
+        print(f"AI/ML Job Filtering: Kept {len(filtered_df):,} jobs, removed {removed_count:,} ({removed_pct:.1f}%)")
+
+        # Show sample of removed jobs for debugging
+        if removed_count > 0:
+            removed_df = df[~(include_mask & ~exclude_mask)]
+            print(f"  Sample removed jobs: {removed_df['job_title'].value_counts().head(3).to_dict()}")
+
+    return filtered_df
+
+
 def standardize_linkedin_data(df: pd.DataFrame) -> pd.DataFrame:
     """Standardize LinkedIn data to match H1B schema."""
     if df.empty:
@@ -167,6 +229,9 @@ def standardize_linkedin_data(df: pd.DataFrame) -> pd.DataFrame:
     # Add URL for reference
     if 'job_url' in df.columns:
         standardized['job_url'] = df['job_url']
+
+    # Filter to AI/ML jobs only (remove data entry, clerical jobs)
+    standardized = filter_ai_ml_jobs(standardized)
 
     return standardized
 
@@ -294,6 +359,31 @@ def consolidate_local_linkedin_data():
         top_states = standardized_df['worksite_state'].value_counts().head(10)
         for state, count in top_states.items():
             print(f"  {state}: {count:,}")
+
+    # Save quality metrics
+    quality_metrics = {
+        'total_jobs_before_filter': len(all_jobs),
+        'total_jobs_after_filter': len(standardized_df),
+        'filter_rate': (len(all_jobs) - len(standardized_df)) / len(all_jobs) * 100 if len(all_jobs) > 0 else 0,
+        'top_10_titles': standardized_df['job_title'].value_counts().head(10).to_dict() if 'job_title' in standardized_df.columns else {},
+        'timestamp': datetime.now().isoformat(),
+        'salary_stats': {
+            'count': len(salaries),
+            'mean': float(salaries.mean()),
+            'median': float(salaries.median()),
+            'min': float(salaries.min()),
+            'max': float(salaries.max())
+        } if 'annual_salary' in standardized_df.columns and len(salaries) > 0 else {}
+    }
+
+    metrics_path = Path("data/linkedin/metadata/quality_metrics.json")
+    metrics_path.parent.mkdir(parents=True, exist_ok=True)
+
+    import json
+    with open(metrics_path, 'w') as f:
+        json.dump(quality_metrics, f, indent=2)
+
+    print(f"\n✓ Saved quality metrics to {metrics_path}")
 
     print("\n" + "=" * 70)
     print("✓ CONSOLIDATION COMPLETE!")

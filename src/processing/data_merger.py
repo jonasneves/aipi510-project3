@@ -417,6 +417,11 @@ class DataMerger:
 
         # Simple exact match deduplication first
         exact_match_cols = [c for c in match_fields if c in df.columns]
+
+        # Optionally deduplicate within each source (prevents cross-source collapse)
+        if dedup_config.get("group_by_source", False):
+            if "data_source" not in exact_match_cols and "data_source" in df.columns:
+                exact_match_cols.append("data_source")
         if exact_match_cols:
             before_count = len(df)
 
