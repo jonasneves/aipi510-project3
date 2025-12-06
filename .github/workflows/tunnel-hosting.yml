@@ -43,7 +43,7 @@ env:
 jobs:
   host:
     name: Live Server #${{ matrix.instance }}
-    runs-on: ubuntu-24.04-arm64  # ARM architecture for better performance and cost
+    runs-on: ubuntu-24.04-arm
     timeout-minutes: 350
     strategy:
       matrix:
@@ -491,7 +491,7 @@ jobs:
 
   notify:
     needs: host
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     if: always()
     steps:
       - name: Session ended
