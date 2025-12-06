@@ -263,6 +263,67 @@ class LinkedInJobsCollector:
 
         return None
 
+    def _filter_ai_ml_jobs(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Filter to only AI/ML relevant jobs, excluding data entry and clerical positions.
+
+        Args:
+            df: DataFrame with job_title column
+
+        Returns:
+            Filtered DataFrame with only AI/ML relevant jobs
+        """
+        if df.empty or 'job_title' not in df.columns:
+            return df
+
+        # Include keywords - jobs that should be kept
+        ai_ml_keywords = [
+            'machine learning', 'ml engineer', 'data scientist', 'ai engineer',
+            'deep learning', 'nlp', 'natural language processing', 'computer vision',
+            'mlops', 'research scientist', 'applied scientist', 'ai research',
+            'neural network', 'tensorflow', 'pytorch', 'data science',
+            'artificial intelligence', 'quantitative', 'analytics engineer',
+            'modeling', 'algorithm', 'big data', 'hadoop', 'spark'
+        ]
+
+        # Exclude keywords - jobs that should be filtered out
+        exclude_keywords = [
+            'data entry', 'virtual assistant', 'clerk', 'typist', 'typing',
+            'checkout', 'fashion', 'administrative', 'capacitador', 'receptionist',
+            'medical office', 'office assistant', 'customer service', 'cashier',
+            'retail', 'sales associate', 'warehouse', 'driver', 'delivery',
+            'cleaner', 'janitor', 'security guard', 'restaurant', 'cook',
+            'dishwasher', 'barista', 'waiter', 'waitress', 'hostess'
+        ]
+
+        # Create lowercase title column for matching
+        df['_title_lower'] = df['job_title'].str.lower().fillna('')
+
+        # Must match at least one AI/ML keyword
+        include_mask = df['_title_lower'].apply(
+            lambda x: any(kw in str(x) for kw in ai_ml_keywords)
+        )
+
+        # Must NOT match any exclude keyword
+        exclude_mask = df['_title_lower'].apply(
+            lambda x: any(kw in str(x) for kw in exclude_keywords)
+        )
+
+        # Keep jobs that match AI/ML keywords AND don't match exclude keywords
+        filtered_df = df[include_mask & ~exclude_mask].drop('_title_lower', axis=1)
+
+        if len(df) > 0:
+            removed_count = len(df) - len(filtered_df)
+            removed_pct = (removed_count / len(df)) * 100
+            print(f"AI/ML Job Filtering: Kept {len(filtered_df):,} jobs, removed {removed_count:,} ({removed_pct:.1f}%)")
+
+            # Show sample of removed jobs for debugging
+            if removed_count > 0:
+                removed_df = df[~(include_mask & ~exclude_mask)]
+                print(f"  Sample removed jobs: {removed_df['job_title'].value_counts().head(3).to_dict()}")
+
+        return filtered_df
+
     def _standardize_linkedin_data(self, df: pd.DataFrame) -> pd.DataFrame:
         """
         Standardize LinkedIn data to match H1B schema.
@@ -336,6 +397,9 @@ class LinkedInJobsCollector:
         # Add URL for reference
         if 'job_url' in df.columns:
             standardized['job_url'] = df['job_url']
+
+        # Filter to AI/ML jobs only (remove data entry, clerical jobs)
+        standardized = self._filter_ai_ml_jobs(standardized)
 
         return standardized
 

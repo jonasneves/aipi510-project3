@@ -44,71 +44,71 @@ jobs:
               {
                 "batch": "1",
                 "queries": [
-                  {"keyword": "junior machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "entry level data scientist", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"machine learning engineer\" -\"data entry\" -clerk", "location": "United States", "salary": "80000", "limit": "100"},
+                  {"keyword": "\"data scientist\" -entry -clerk -typist", "location": "United States", "salary": "80000", "limit": "100"}
                 ]
               },
               {
                 "batch": "2",
                 "queries": [
-                  {"keyword": "machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "data scientist", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"machine learning engineer\" -junior -entry", "location": "United States", "salary": "100000", "limit": "100"},
+                  {"keyword": "\"data scientist\" -assistant -analyst", "location": "United States", "salary": "100000", "limit": "100"}
                 ]
               },
               {
                 "batch": "3",
                 "queries": [
-                  {"keyword": "senior machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "senior data scientist", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"senior machine learning engineer\"", "location": "United States", "salary": "120000", "limit": "100"},
+                  {"keyword": "\"senior data scientist\"", "location": "United States", "salary": "120000", "limit": "100"}
                 ]
               },
               {
                 "batch": "4",
                 "queries": [
-                  {"keyword": "principal machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "staff machine learning engineer", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"principal machine learning engineer\"", "location": "United States", "salary": "150000", "limit": "100"},
+                  {"keyword": "\"staff machine learning engineer\"", "location": "United States", "salary": "150000", "limit": "100"}
                 ]
               },
               {
                 "batch": "5",
                 "queries": [
-                  {"keyword": "AI engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "deep learning engineer", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"AI engineer\" -assistant", "location": "United States", "salary": "90000", "limit": "100"},
+                  {"keyword": "\"deep learning engineer\"", "location": "United States", "salary": "100000", "limit": "100"}
                 ]
               },
               {
                 "batch": "6",
                 "queries": [
-                  {"keyword": "computer vision engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "NLP engineer", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"computer vision engineer\"", "location": "United States", "salary": "100000", "limit": "100"},
+                  {"keyword": "\"NLP engineer\" OR \"natural language processing\"", "location": "United States", "salary": "100000", "limit": "100"}
                 ]
               },
               {
                 "batch": "7",
                 "queries": [
-                  {"keyword": "MLOps engineer", "location": "United States", "salary": "50000", "limit": "100"},
-                  {"keyword": "research scientist machine learning", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"MLOps engineer\"", "location": "United States", "salary": "100000", "limit": "100"},
+                  {"keyword": "\"research scientist\" \"machine learning\"", "location": "United States", "salary": "110000", "limit": "100"}
                 ]
               },
               {
                 "batch": "8",
                 "queries": [
-                  {"keyword": "machine learning engineer", "location": "California", "salary": "50000", "limit": "100"},
-                  {"keyword": "data scientist", "location": "New York", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"machine learning engineer\" -entry", "location": "California", "salary": "120000", "limit": "100"},
+                  {"keyword": "\"data scientist\" -analyst", "location": "New York", "salary": "110000", "limit": "100"}
                 ]
               },
               {
                 "batch": "9",
                 "queries": [
-                  {"keyword": "machine learning engineer", "location": "Washington", "salary": "50000", "limit": "100"},
-                  {"keyword": "data scientist", "location": "Massachusetts", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"machine learning engineer\"", "location": "Washington", "salary": "110000", "limit": "100"},
+                  {"keyword": "\"data scientist\"", "location": "Massachusetts", "salary": "110000", "limit": "100"}
                 ]
               },
               {
                 "batch": "10",
                 "queries": [
-                  {"keyword": "machine learning engineer", "location": "Texas", "salary": "50000", "limit": "100"},
-                  {"keyword": "applied scientist", "location": "United States", "salary": "50000", "limit": "100"}
+                  {"keyword": "\"machine learning engineer\"", "location": "Texas", "salary": "100000", "limit": "100"},
+                  {"keyword": "\"applied scientist\"", "location": "United States", "salary": "110000", "limit": "100"}
                 ]
               }
             ]
@@ -160,13 +160,47 @@ jobs:
           const writeStream = fs.createWriteStream(OUTPUT_FILE, { flags: "a" });
           const queries = JSON.parse(process.env.QUERIES);
           const seenJobUrls = new Set();
+          let globalSeenJobs = new Set();
 
           let totalJobs = 0;
           let jobsWithSalary = 0;
+          let skippedAlreadyCollected = 0;
+
+          // Load state from S3 to avoid re-collecting same jobs
+          async function loadState() {
+            try {
+              const { execSync } = require('child_process');
+              const STATE_FILE = "./data/seen_jobs_state.json";
+
+              console.log("Loading previously collected jobs from S3...");
+              try {
+                execSync(`aws s3 cp s3://ai-salary-predictor/data/linkedin/metadata/seen_jobs_state.json ${STATE_FILE} 2>/dev/null || true`, { stdio: 'ignore' });
+              } catch (e) {}
+
+              if (fs.existsSync(STATE_FILE)) {
+                const state = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+                globalSeenJobs = new Set(state.seen_urls || []);
+                console.log(`Loaded ${globalSeenJobs.size} previously collected jobs`);
+              } else {
+                console.log("No previous state found, starting fresh");
+              }
+            } catch (e) {
+              console.log("Could not load state, starting fresh:", e.message);
+            }
+          }
 
           function saveJob(job) {
+            // Skip if already collected globally
+            if (globalSeenJobs.has(job.jobUrl)) {
+              skippedAlreadyCollected++;
+              return false;
+            }
+
+            // Skip if seen in this run
             if (seenJobUrls.has(job.jobUrl)) return false;
+
             seenJobUrls.add(job.jobUrl);
+            globalSeenJobs.add(job.jobUrl);
 
             const jobData = {
               collected_at: new Date().toISOString(),
@@ -194,7 +228,31 @@ jobs:
             return true;
           }
 
+          async function saveState() {
+            try {
+              const { execSync } = require('child_process');
+              const STATE_FILE = "./data/seen_jobs_state.json";
+
+              const stateData = {
+                seen_urls: Array.from(globalSeenJobs),
+                last_updated: new Date().toISOString(),
+                total_jobs: globalSeenJobs.size,
+                batch_id: BATCH_ID
+              };
+
+              fs.writeFileSync(STATE_FILE, JSON.stringify(stateData));
+              console.log(`\nSaving state: ${globalSeenJobs.size} total seen jobs`);
+
+              // Upload to S3 (note: this will be uploaded by the last batch to finish)
+              // We save locally and it will be synced in consolidation step
+            } catch (e) {
+              console.log("Warning: Could not save state:", e.message);
+            }
+          }
+
           async function collect() {
+            await loadState();
+
             console.log(`Batch ${BATCH_ID}: Processing ${queries.length} queries\n`);
 
             for (const [i, query] of queries.entries()) {
@@ -210,7 +268,8 @@ jobs:
 
                 let saved = 0;
                 jobs.forEach(job => { if (saveJob(job)) saved++; });
-                console.log(`  Saved ${saved} unique jobs`);
+                console.log(`  Saved ${saved} unique jobs (skipped ${skippedAlreadyCollected} already collected)`);
+                skippedAlreadyCollected = 0; // Reset for next query
 
                 if (i < queries.length - 1) {
                   await new Promise(r => setTimeout(r, 3000));
@@ -221,6 +280,7 @@ jobs:
             }
 
             writeStream.end();
+            await saveState();
             console.log(`\nBatch ${BATCH_ID} complete: ${totalJobs} jobs (${jobsWithSalary} with salary)`);
           }
 
@@ -350,6 +410,42 @@ jobs:
             s3://ai-salary-predictor/data/linkedin/processed/ \
             --storage-class INTELLIGENT_TIERING
 
+      - name: Create and upload state file
+        working-directory: linkedin-scraper
+        run: |
+          # Create state file with all unique job URLs from consolidated file
+          node -e "
+          const fs = require('fs');
+          const seenUrls = new Set();
+
+          // Read consolidated file
+          const lines = fs.readFileSync('./data/consolidated-${{ needs.generate-matrix.outputs.timestamp }}.jsonl', 'utf8').split('\n');
+          lines.forEach(line => {
+            if (line.trim()) {
+              const job = JSON.parse(line);
+              if (job.job_url) seenUrls.add(job.job_url);
+            }
+          });
+
+          // Save state
+          const state = {
+            seen_urls: Array.from(seenUrls),
+            last_updated: new Date().toISOString(),
+            total_jobs: seenUrls.size,
+            timestamp: '${{ needs.generate-matrix.outputs.timestamp }}'
+          };
+
+          fs.writeFileSync('./data/seen_jobs_state.json', JSON.stringify(state));
+          console.log('State file created with ' + seenUrls.size + ' job URLs');
+          "
+
+          # Upload state to S3
+          aws s3 cp ./data/seen_jobs_state.json \
+            s3://ai-salary-predictor/data/linkedin/metadata/seen_jobs_state.json \
+            --storage-class INTELLIGENT_TIERING
+
+          echo "✓ Uploaded state file to S3"
+
       # Comprehensive consolidation of ALL LinkedIn data
       - uses: actions/setup-python@v5
         with:
@@ -398,6 +494,18 @@ jobs:
             --storage-class INTELLIGENT_TIERING
 
           echo "✓ Uploaded comprehensive consolidated file to S3"
+
+          # Upload quality metrics if they exist
+          if [ -f "data/linkedin/metadata/quality_metrics.json" ]; then
+            aws s3 cp data/linkedin/metadata/quality_metrics.json \
+              s3://ai-salary-predictor/data/linkedin/metadata/quality_metrics.json \
+              --storage-class INTELLIGENT_TIERING
+            echo "✓ Uploaded quality metrics to S3"
+
+            # Display metrics
+            echo "📊 Data Quality Metrics:"
+            cat data/linkedin/metadata/quality_metrics.json
+          fi
 
       - name: Create summary
         working-directory: linkedin-scraper
