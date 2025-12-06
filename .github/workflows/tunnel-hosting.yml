@@ -6,7 +6,7 @@ run-name: "Live Server - aisalary.neevs.io"
 on:
   # Auto-restart on push to main
   push:
-    branches: [main]
+    branches: [refine-data-collection] # TODO: change back to main
     paths:
       - 'api/**'
       - 'frontend-react/**'
@@ -88,6 +88,11 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install uvicorn
+
+      - name: Download spaCy model
+        run: |
+          echo "Downloading spaCy model for resume parsing..."
+          python -m spacy download en_core_web_sm
 
       - name: Install node modules
         if: steps.npm-cache.outputs.cache-hit != 'true'

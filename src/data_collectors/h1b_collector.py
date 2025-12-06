@@ -1,16 +1,11 @@
 """
 H1B Salary Data Collector
 
-Collects H1B visa salary data from public disclosure files.
-The Department of Labor publishes H1B Labor Condition Applications (LCA) data
-which contains exact salary information for foreign workers.
+Collects H1B visa salary data from DOL disclosure files with AI/ML job filtering
+and salary normalization.
 
 Data source: https://www.dol.gov/agencies/eta/foreign-labor/performance
 """
-
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Implemented H1B data collection from DOL disclosure files with AI/ML job filtering,
-## salary normalization, and S3 caching for efficient data pipeline operation.
 
 import os
 import re
@@ -471,9 +466,7 @@ class H1BSalaryCollector:
         all_data = []
 
         for year in years:
-            print(f"\n{'='*50}")
-            print(f"Collecting H1B data for FY{year}")
-            print(f"{'='*50}")
+            print(f"Collecting H1B data for FY{year}...")
 
             df = self.fetch_lca_data(fiscal_year=year, n_samples=n_samples)
 

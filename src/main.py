@@ -4,10 +4,6 @@ AI Salary Negotiation Intelligence Tool
 Main entry point for data collection, model training, and salary predictions.
 """
 
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Designed and implemented the ML pipeline orchestration, including data collection workflows,
-## model training with MLflow integration, and prediction interface with salary range estimation.
-
 import argparse
 import sys
 from pathlib import Path
@@ -22,13 +18,10 @@ load_dotenv()
 
 def collect_data(args):
     """Collect data from various sources."""
-    print("=" * 60)
-    print("AI Salary Negotiation Intelligence - Data Collection")
-    print("=" * 60)
+    print("--- Data Collection ---")
 
     from .data_collectors import (
         H1BSalaryCollector,
-        BLSDataCollector,
         AdzunaJobsCollector,
         LinkedInJobsCollector,
     )
@@ -38,7 +31,7 @@ def collect_data(args):
     should_collect = lambda source: "all" in sources or source in sources
 
     if should_collect("h1b"):
-        print("\n[1/4] Collecting H1B Salary Data...")
+        print("\n[1/3] Collecting H1B Salary Data...")
         try:
             h1b = H1BSalaryCollector(data_dir=args.data_dir)
             df = h1b.collect(
@@ -53,20 +46,8 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting H1B data: {e}")
 
-    if should_collect("bls"):
-        print("\n[2/4] Collecting BLS Wage Data...")
-        try:
-            bls = BLSDataCollector(data_dir=args.data_dir)
-            df = bls.collect(start_year=args.start_year or 2022, end_year=2024)
-            if not df.empty:
-                print(f"  Collected {len(df)} BLS records")
-            else:
-                print("  Warning: No BLS data collected (check API key or series IDs)")
-        except Exception as e:
-            print(f"  Error collecting BLS data: {e}")
-
     if should_collect("jobs"):
-        print("\n[3/4] Collecting Job Posting Data...")
+        print("\n[2/3] Collecting Job Posting Data...")
         try:
             adzuna = AdzunaJobsCollector(data_dir=args.data_dir)
             results = adzuna.collect(
@@ -80,10 +61,14 @@ def collect_data(args):
             print(f"  Error collecting job data: {e}")
 
     if should_collect("linkedin"):
-        print("\n[4/4] Collecting LinkedIn Job Data from S3...")
+        print("\n[3/3] Collecting LinkedIn Job Data from S3...")
         try:
             linkedin = LinkedInJobsCollector(data_dir=args.data_dir)
-            df = linkedin.collect(use_consolidated=True)
+            use_all = getattr(args, 'linkedin_all_history', False)
+            df = linkedin.collect(
+                use_consolidated=True,
+                use_all_consolidated=use_all
+            )
             if not df.empty:
                 stats = linkedin.get_summary_stats(df)
                 print(f"  Collected {len(df)} LinkedIn records")
@@ -92,20 +77,23 @@ def collect_data(args):
         except Exception as e:
             print(f"  Error collecting LinkedIn data: {e}")
 
-    print("\n" + "=" * 60)
-    print("Data collection complete!")
-    print("=" * 60)
+    print("\nData collection complete!")
 
 
 def merge_data(args):
     """Merge collected data from all sources."""
-    print("=" * 60)
-    print("AI Salary Negotiation Intelligence - Data Merging")
-    print("=" * 60)
+    print("--- Data Merging ---")
 
     from .processing import DataMerger
 
-    merger = DataMerger(data_dir=args.data_dir)
+    # Show profile info if specified
+    if hasattr(args, 'profile') and args.profile:
+        print(f"\nUsing training profile: {args.profile}")
+
+    merger = DataMerger(
+        data_dir="data",
+        training_profile=getattr(args, 'profile', None)
+    )  # Uses new hierarchical structure
     merged_df = merger.merge_all_sources()
 
     if not merged_df.empty:
@@ -122,17 +110,56 @@ def merge_data(args):
                 print(f"    {source}: {count}")
 
 
+def generate_eda(args):
+    """Generate EDA report."""
+    print("--- EDA Report ---")
+
+    from .analysis.eda_report import EDAReportGenerator
+
+    generator = EDAReportGenerator(
+        data_dir=args.data_dir,
+        output_dir=args.output_dir,
+        keep_latest_only=args.keep_latest_only
+    )
+    generator.run()
+
+
 def train_model(args):
     """Train the salary prediction model."""
-    print("=" * 60)
-    print("AI Salary Negotiation Intelligence - Model Training")
-    print("=" * 60)
+    # Handle --list-profiles first
+    if hasattr(args, 'list_profiles') and args.list_profiles:
+        from .utils.config_loader import ConfigLoader
+        config = ConfigLoader.get_data_sources()
+        profiles = config.get("training_profiles", {})
+
+        print("--- Available Training Profiles ---\n")
+
+        if not profiles:
+            print("No training profiles defined in configs/data_sources.yaml")
+            return
+
+        for name, profile in profiles.items():
+            print(f"{name}:")
+            print(f"  Description: {profile.get('description', 'N/A')}")
+            print(f"  Data sources:")
+            sources = profile.get('sources', {})
+            for source, enabled in sources.items():
+                status = "✓" if enabled else "✗"
+                print(f"    {status} {source}")
+            print()
+
+        print("=" * 60)
+        print(f"\nUsage: python -m src.main train --profile <profile_name>")
+        return
+
+    print("--- Model Training ---")
 
     import yaml
     import mlflow
 
     from .processing import DataMerger, FeatureEngineer
     from .models import SalaryPredictor
+    from .utils.config_loader import ConfigLoader
 
     # Load config for MLFlow settings
     config_path = Path("config.yaml")
@@ -154,14 +181,39 @@ def train_model(args):
 
     # Load and prepare data
     print("\nLoading data...")
-    merger = DataMerger(data_dir=args.data_dir)
 
-    # Match DataMerger's path logic: processed_dir = data_dir.parent / "processed"
-    processed_path = Path(args.data_dir).parent / "processed" / "merged_salary_data.parquet"
+    # Show profile info if specified
+    profile = getattr(args, 'profile', None)
+    if profile:
+        print(f"\nUsing training profile: {profile}")
 
-    if processed_path.exists():
-        df = pd.read_parquet(processed_path)
+    merger = DataMerger(
+        data_dir="data",
+        training_profile=profile
+    )  # Uses new hierarchical structure
+
+    # Look for merged data in new location
+    merged_path = Path("data/merged/merged_salary_data.parquet")
+
+    if merged_path.exists():
+        df = pd.read_parquet(merged_path)
         print(f"Loaded {len(df)} records from merged data")
+
+        # Apply profile filtering to existing merged data if specified
+        if profile and profile != 'all':
+            print(f"  Filtering data for profile: {profile}")
+            profile_config = ConfigLoader.get_data_sources().get("training_profiles", {}).get(profile, {})
+            if profile_config:
+                sources_config = profile_config.get("sources", {})
+                # Filter to only include enabled sources from profile
+                enabled_sources = [src for src, enabled in sources_config.items() if enabled]
+                if 'data_source' in df.columns and enabled_sources:
+                    df = df[df['data_source'].isin(enabled_sources)].copy()
+                    print(f"  After profile filter: {len(df)} records")
+                    if len(df) == 0:
+                        print(f"  ERROR: No data for sources: {enabled_sources}")
+                        print(f"  Available sources in merged data: {df['data_source'].unique().tolist()}")
+                        return
     else:
         print("Merged data not found. Running merge first...")
         df = merger.merge_all_sources()
@@ -170,6 +222,27 @@ def train_model(args):
         print("No data available for training!")
         print("Run data collection first: python -m src.main collect")
         return
+
+    # Filter to recent data only (configurable lookback period)
+    from datetime import datetime
+    current_year = datetime.now().year
+    training_config = config.get("training", {})
+    lookback_years = training_config.get("lookback_years", 2)
+    cutoff_year = current_year - lookback_years + 1
+
+    print(f"\nFiltering to recent data (last {lookback_years} years: {cutoff_year}-{current_year})")
+    df_before = len(df)
+    df = df[df['year'] >= cutoff_year].copy()
+    print(f"  Kept {len(df)} / {df_before} records ({len(df)/df_before*100:.1f}%)")
+
+    if df.empty:
+        print("No recent data available after filtering!")
+        return
+
+    # Fix column name mismatch: location_state -> worksite_state
+    if 'location_state' in df.columns and 'worksite_state' not in df.columns:
+        print("  Renaming location_state to worksite_state for feature engineering")
+        df = df.rename(columns={'location_state': 'worksite_state'})
 
     # Feature engineering
     print("\nEngineering features...")
@@ -183,9 +256,41 @@ def train_model(args):
     # Ensure unique feature columns
     feature_cols = list(dict.fromkeys(feature_cols))
 
-    # Create train/test split
+    # Create train/test split using hybrid approach (random + stratified)
     print("\nCreating train/test split...")
-    train_df, val_df, test_df = merger.create_train_test_split(df, test_year=2024)
+    from sklearn.model_selection import train_test_split
+
+    test_size = config.get("data", {}).get("test_size", 0.15)
+    val_size = config.get("data", {}).get("validation_size", 0.15)
+    random_state = config.get("data", {}).get("random_state", 42)
+    stratify_by_year = training_config.get("stratify_by_year", True)
+
+    # Stratify by year if enabled and year column exists
+    stratify_col = df['year'] if (stratify_by_year and 'year' in df.columns) else None
+
+    # Split: test set
+    train_val_df, test_df = train_test_split(
+        df,
+        test_size=test_size,
+        random_state=random_state,
+        stratify=stratify_col
+    )
+
+    # Split: validation set from remaining
+    # Adjust val_size to be relative to train_val_df
+    val_size_adjusted = val_size / (1 - test_size)
+    stratify_col_val = train_val_df['year'] if (stratify_by_year and 'year' in train_val_df.columns) else None
+
+    train_df, val_df = train_test_split(
+        train_val_df,
+        test_size=val_size_adjusted,
+        random_state=random_state,
+        stratify=stratify_col_val
+    )
+
+    print(f"  Train: {len(train_df)} samples ({len(train_df)/len(df)*100:.1f}%)")
+    print(f"  Val:   {len(val_df)} samples ({len(val_df)/len(df)*100:.1f}%)")
+    print(f"  Test:  {len(test_df)} samples ({len(test_df)/len(df)*100:.1f}%)")
 
     def to_numeric_df(data, cols):
         """Convert to numeric DataFrame with unique columns."""
@@ -271,16 +376,12 @@ def train_model(args):
 
         print(f"\nMLFlow run completed: {run.info.run_id}")
 
-    print("\n" + "=" * 60)
-    print("Model training complete!")
-    print("=" * 60)
+    print("\nModel training complete!")
 
 
 def predict(args):
     """Make salary predictions."""
-    print("=" * 60)
-    print("AI Salary Negotiation Intelligence - Salary Prediction")
-    print("=" * 60)
+    print("--- Salary Prediction ---")
 
     from .models import SalaryPredictor
     from .processing import FeatureEngineer
@@ -421,7 +522,7 @@ Examples:
     collect_parser.add_argument(
         "--source",
         action="append",
-        choices=["all", "h1b", "bls", "jobs", "linkedin"],
+        choices=["all", "h1b", "jobs", "linkedin"],
         help="Data source to collect (can be specified multiple times, default: all)",
     )
     collect_parser.add_argument(
@@ -429,11 +530,6 @@ Examples:
         nargs="+",
         type=int,
         help="Years to collect H1B data for",
-    )
-    collect_parser.add_argument(
-        "--start-year",
-        type=int,
-        help="Start year for BLS data",
     )
     collect_parser.add_argument(
         "--h1b-samples",
@@ -459,9 +555,36 @@ Examples:
         default=10,
         help="Maximum pages per Adzuna query (default: 10)",
     )
+    collect_parser.add_argument(
+        "--linkedin-all-history",
+        action="store_true",
+        help="Fetch ALL historical LinkedIn consolidated files (189%% more data, recommended)",
+    )
 
     # Merge command
     merge_parser = subparsers.add_parser("merge", help="Merge collected data")
+    merge_parser.add_argument(
+        "--profile",
+        help="Training profile to use (filters which sources to include)",
+    )
+
+    # EDA command
+    eda_parser = subparsers.add_parser("eda", help="Generate EDA report")
+    eda_parser.add_argument(
+        "--data-dir",
+        default="data/processed",
+        help="Data directory (default: data/processed)",
+    )
+    eda_parser.add_argument(
+        "--output-dir",
+        default="docs/reports",
+        help="Output directory (default: docs/reports)",
+    )
+    eda_parser.add_argument(
+        "--keep-latest-only",
+        action="store_true",
+        help="Remove old reports, keep only latest",
+    )
 
     # Train command
     train_parser = subparsers.add_parser("train", help="Train prediction model")
@@ -474,6 +597,15 @@ Examples:
         "--cv",
         action="store_true",
         help="Perform cross-validation",
+    )
+    train_parser.add_argument(
+        "--profile",
+        help="Training profile to use (e.g., h1b_only, linkedin_only, h1b_linkedin, all)",
+    )
+    train_parser.add_argument(
+        "--list-profiles",
+        action="store_true",
+        help="List available training profiles and exit",
     )
 
     # Predict command
@@ -490,6 +622,8 @@ Examples:
         collect_data(args)
     elif args.command == "merge":
         merge_data(args)
+    elif args.command == "eda":
+        generate_eda(args)
     elif args.command == "train":
         train_model(args)
     elif args.command == "predict":

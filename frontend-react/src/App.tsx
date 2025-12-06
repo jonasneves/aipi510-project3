@@ -8,7 +8,7 @@ import { Slider } from './components/ui/slider'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs'
 
 // Use /api path in production (Cloudflare routes to API), fallback to localhost for dev
-const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000' : '/api')
+const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api')
 
 interface Options {
   job_titles: string[]
@@ -82,7 +82,7 @@ function generateBellCurve(low: number, median: number, high: number) {
 export default function App() {
   const [options, setOptions] = useState<Options | null>(null)
   const [jobTitle, setJobTitle] = useState('ML Engineer')
-  const [location, setLocation] = useState('CA')
+  const [location, setLocation] = useState('NC')
   const [experience, setExperience] = useState(3)
   const [company, setCompany] = useState('')
   const [selectedSkills, setSelectedSkills] = useState<string[]>(['Python', 'Machine Learning'])
@@ -259,7 +259,7 @@ export default function App() {
             <img src="/logo.png" alt="AI Salary Predictor" className="h-8 w-8" />
             <div>
               <span className="font-semibold text-lg">AI Salary Predictor</span>
-              <p className="text-xs text-muted-foreground">Data-driven insights from H1B, BLS, and job postings</p>
+              <p className="text-xs text-muted-foreground">Data-driven insights from H1B, LinkedIn Jobs, and Adzuna</p>
             </div>
           </div>
         </header>
@@ -524,8 +524,8 @@ export default function App() {
             <p>
               Data Sources:{' '}
               <span className="text-foreground/70">H1B</span>,{' '}
-              <span className="text-foreground/70">BLS</span>,{' '}
-              <span className="text-foreground/70">Postings</span>
+              <span className="text-foreground/70">LinkedIn</span>,{' '}
+              <span className="text-foreground/70">Adzuna</span>
             </p>
           </footer>
         </main>

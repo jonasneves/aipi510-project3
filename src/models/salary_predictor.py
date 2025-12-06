@@ -121,10 +121,12 @@ class SalaryPredictor:
         # Calculate training metrics
         train_pred = self.model.predict(X_train)
         self.training_metrics["train"] = self._calculate_metrics(y_train, train_pred)
+        self.training_metrics["train"]["n_samples"] = len(X_train)
 
         if X_val is not None and y_val is not None:
             val_pred = self.model.predict(X_val)
             self.training_metrics["validation"] = self._calculate_metrics(y_val, val_pred)
+            self.training_metrics["validation"]["n_samples"] = len(X_val)
 
         # Store feature importance
         self.feature_importance = dict(

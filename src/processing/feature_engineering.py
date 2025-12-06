@@ -2,12 +2,8 @@
 Feature Engineering Pipeline
 
 Creates features for salary prediction from multiple data sources.
-Combines H1B data, BLS statistics, and job postings.
+Combines H1B data, LinkedIn Jobs, and Adzuna job postings.
 """
-
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Created feature extraction from job titles, skills categorization, location encoding,
-## company tier classification, and experience estimation for salary prediction.
 
 import re
 from pathlib import Path
@@ -212,30 +208,80 @@ class FeatureEngineer:
         """
         df = df.copy()
 
-        print("Extracting skill features...")
-        # Extract skill features from job title
-        if title_col in df.columns:
+        # Extract skill features from skills column (if available) or job title
+        if 'skills' in df.columns:
+            # Use actual skills data from LinkedIn
+            def extract_skills_from_list(skills):
+                """Extract skill categories from skills list."""
+                skill_flags = {f"skill_{cat}": 0 for cat in self.SKILL_CATEGORIES}
+
+                if skills is None:
+                    return skill_flags
+
+                # Skip scalar/NA values
+                if isinstance(skills, (int, float)):
+                    if pd.isna(skills):
+                        return skill_flags
+                if isinstance(skills, str):
+                    return skill_flags
+
+                iterable = None
+                if isinstance(skills, (list, tuple, set)):
+                    iterable = list(skills)
+                elif isinstance(skills, np.ndarray):
+                    iterable = skills.flatten().tolist()
+                else:
+                    # Some sources may store JSON strings or other objects; skip those
+                    return skill_flags
+
+                if not iterable:
+                    return skill_flags
+
+                normalized = []
+                for item in iterable:
+                    if item is None:
+                        continue
+                    try:
+                        if pd.isna(item):
+                            continue
+                    except TypeError:
+                        # Non-scalar objects (e.g., dict) fall through to string conversion
+                        pass
+                    normalized.append(str(item).lower())
+
+                if not normalized:
+                    return skill_flags
+
+                skills_text = ' '.join(normalized)
+
+                # Check each category
+                for category, keywords in self.SKILL_CATEGORIES.items():
+                    if any(keyword in skills_text for keyword in keywords):
+                        skill_flags[f"skill_{category}"] = 1
+
+                return skill_flags
+
+            skill_features = df['skills'].apply(extract_skills_from_list).apply(pd.Series)
+            df = pd.concat([df, skill_features], axis=1)
+        elif title_col in df.columns:
+            # Fallback to job title if skills column not available
             skill_features = df[title_col].apply(self.extract_skills).apply(pd.Series)
             df = pd.concat([df, skill_features], axis=1)
 
-        print("Extracting experience level features...")
         # Extract experience level
         if title_col in df.columns:
             exp_features = df[title_col].apply(self.extract_experience_level).apply(pd.Series)
             df = pd.concat([df, exp_features], axis=1)
 
-        print("Extracting role type features...")
         # Extract role type
         if title_col in df.columns:
             role_features = df[title_col].apply(self.extract_role_type).apply(pd.Series)
             df = pd.concat([df, role_features], axis=1)
 
-        print("Extracting company tier features...")
         # Extract company tier
         if company_col in df.columns:
             df["company_tier"] = df[company_col].apply(self.extract_company_tier)
 
-        print("Extracting location features...")
         # Extract location features
         if state_col in df.columns:
             # Standardize state column
@@ -243,11 +289,9 @@ class FeatureEngineer:
             location_features = df["state_clean"].apply(self.get_location_features).apply(pd.Series)
             df = pd.concat([df, location_features], axis=1)
 
-        print("Creating interaction features...")
         # Create interaction features
         df = self._create_interactions(df)
 
-        print("Handling time-based features...")
         # Time-based features
         df = self._add_time_features(df)
 

@@ -1,13 +1,10 @@
 """
 BLS Data Collector
 
-Fetches national wage benchmarks for AI/ML occupations.
+Fetches national wage benchmarks for AI/ML occupations via BLS API.
+
 API: https://www.bls.gov/developers/
 """
-
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Implemented BLS API integration for occupational wage benchmarks with SOC code mapping
-## and time series data collection for AI/ML related occupations.
 
 import os
 from pathlib import Path

@@ -12,16 +12,15 @@ Predict AI/ML salaries using machine learning. Built for Duke AIPI 510 Module Pr
 
 **Problem:** Estimate salary ranges for AI/ML roles based on job title, location, experience, and skills.
 
-**Solution:** XGBoost regression model trained on H1B visa filings and BLS wage data, deployed as a FastAPI service with a React frontend.
+**Solution:** XGBoost regression model trained on H1B visa filings, LinkedIn job postings, and Adzuna market data, deployed as a FastAPI service with a React frontend.
 
 ## Dataset
 
-| Source | Description | Records |
-|--------|-------------|---------|
-| [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL certified visa applications with actual salaries | ~50k AI/ML jobs |
-| [BLS OES](https://www.bls.gov/oes/) | Occupational wage statistics by state | Benchmark data |
-| [Adzuna](https://developer.adzuna.com/) | Job postings with salary ranges | Market data |
-| [LinkedIn](https://www.linkedin.com) | Job postings with detailed salary, seniority, skills data | Collected daily |
+| Source | Description | Priority | Records |
+|--------|-------------|----------|---------|
+| [H1B Visa Data](https://www.dol.gov/agencies/eta/foreign-labor/performance) | DOL certified visa applications with actual salaries | 1 | ~10,000 AI/ML jobs |
+| [LinkedIn](https://www.linkedin.com) | Job postings with detailed salary, seniority, skills data | 1 | ~1,000+ (growing) |
+| [Adzuna](https://developer.adzuna.com/) | Job postings with salary ranges | 2 | ~16,500 |
 
 Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 
@@ -46,7 +45,7 @@ Data hosted on AWS S3. Pipeline downloads and merges sources automatically.
 
 MLflow is used for experiment tracking during model training.
 
-📊 **[MLflow Overview](docs/MLflow-Overview.pdf)** | **[Feature Importance](docs/MLflow-FeatureImportance.pdf)**
+→ **[MLflow Overview](docs/MLflow-Overview.pdf)** | **[Feature Importance](docs/MLflow-FeatureImportance.pdf)**
 
 ## Architecture
 

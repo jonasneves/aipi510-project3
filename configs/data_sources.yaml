@@ -3,7 +3,20 @@
 
 sources:
   h1b:
+    # Collection configuration
+    collection:
+      enabled: true  # Whether to support collection for this source
+      force_refresh: false  # Force collection even if S3 cache exists
+      cache_strategy: "annual"  # annual, monthly, always, never
+
+    # Training configuration
+    training:
+      enabled: true  # Include this source in model training
+      priority: 1  # Higher priority = more trusted for conflicts
+
+    # Data configuration
     filename: h1b_ai_salaries.parquet
+    description: "Government-verified H1B salary data - most reliable"
     columns:
       job_title:
         - job_title
@@ -23,19 +36,37 @@ sources:
         - year
       soc_code: soc_code
 
-  bls:
-    filename: bls_wage_data.parquet
-    columns:
-      job_title: occupation
-      employer_name: null  # BLS doesn't have employer data
-      location_city: area_name
-      location_state: area_code  # Requires metro mapping
-      annual_salary: mean_annual_wage
-      year: year
-      soc_code: soc_code
+  # BLS data disabled - only 7 records, insufficient for ML training
+  # Kept for reference/benchmarking purposes only
+  # bls:
+  #   collection:
+  #     enabled: false
+  #   training:
+  #     enabled: false
+  #     priority: 3
+  #   filename: bls_wage_data.parquet
+  #   description: "BLS wage statistics - aggregated, limited records"
+  #   columns:
+  #     job_title: occupation
+  #     employer_name: null
+  #     location_city: area_name
+  #     location_state: area_code
+  #     annual_salary: mean_annual_wage
+  #     year: year
+  #     soc_code: soc_code
 
   adzuna:
+    collection:
+      enabled: true
+      force_refresh: false
+      cache_strategy: "monthly"  # More frequent updates due to job market changes
+
+    training:
+      enabled: true
+      priority: 2
+
     filename: adzuna_jobs.parquet
+    description: "Job board data - good coverage, variable quality"
     columns:
       job_title: title
       employer_name: company
@@ -46,7 +77,17 @@ sources:
       soc_code: null
 
   linkedin:
+    collection:
+      enabled: true
+      force_refresh: false
+      cache_strategy: "always"  # LinkedIn has separate dedicated collection workflow
+
+    training:
+      enabled: true
+      priority: 1  # Same as H1B - richest features
+
     filename: linkedin_ai_jobs.parquet
+    description: "LinkedIn data - rich features (skills, education, experience)"
     columns:
       job_title: job_title
       employer_name: employer_name
@@ -83,10 +124,65 @@ metro_to_state:
 # Data validation rules
 validation:
   salary:
-    min: 30000
-    max: 1500000
+    min: 35000      # Increased from 30k to filter invalid low salaries
+    max: 600000     # Reduced from 1.5M to remove extreme outliers (based on EDA)
+    use_iqr_filter: true  # Enable IQR-based outlier detection
+    iqr_multiplier: 3.0   # Remove values beyond Q3 + 3*IQR (very lenient)
   year:
     default: 2024
+    min: 2020  # Only recent data for better model relevance
+    max: 2025
+
+  # Minimum required fields for a valid record
+  required_fields:
+    - job_title
+    - annual_salary
+
+  # Data quality thresholds
+  quality:
+    min_salary_records_per_source: 100  # Minimum records with salary data
+    max_null_percentage: 0.8  # Max 80% null values in any column
+    # Warn if too many missing values in important fields
+    warn_missing_threshold:
+      location_state: 0.5  # Warn if >50% missing
+      estimated_yoe: 0.7   # Warn if >70% missing
+
+# Merge strategy configuration
+merge_strategy:
+  # Deduplication strategy
+  deduplication:
+    # Fields to use for identifying duplicates
+    match_fields:
+      - job_title
+      - employer_name
+      - location_state
+      - year
+    # Fuzzy matching threshold (0-1, higher = stricter)
+    similarity_threshold: 0.85
+    # Which source to prefer when duplicates found (by priority)
+    conflict_resolution: "highest_priority"
+
+  # Data quality scoring weights
+  quality_scoring:
+    has_skills: 0.3
+    has_experience: 0.2
+    has_education: 0.1
+    has_seniority: 0.1
+    has_employer: 0.1
+    has_location: 0.1
+    source_priority: 0.1
+
+  # Outlier detection
+  outlier_detection:
+    enabled: true
+    method: "iqr"  # interquartile range
+    iqr_multiplier: 3.0  # More lenient than typical 1.5
+
+  # Data enrichment
+  enrichment:
+    extract_seniority_from_title: true
+    standardize_job_titles: true
+    extract_location_features: true
 
 # State name standardization
 state_mapping:
@@ -95,3 +191,42 @@ state_mapping:
   WASHINGTON: WA
   TEXAS: TX
   MASSACHUSETTS: MA
+
+# Logging configuration
+logging:
+  enabled: true
+  log_level: "INFO"
+  log_merge_conflicts: true
+  log_quality_issues: true
+  save_merge_report: true
+
+# Training profiles - Quick presets for different training scenarios
+# Usage: python -m src.main train --profile h1b_only
+training_profiles:
+  all:
+    description: "Train on all available sources (H1B + LinkedIn + Adzuna)"
+    sources:
+      h1b: true
+      adzuna: true
+      linkedin: true
+
+  h1b_only:
+    description: "Train only on government H1B data"
+    sources:
+      h1b: true
+      adzuna: false
+      linkedin: false
+
+  linkedin_only:
+    description: "Train only on LinkedIn data with rich features"
+    sources:
+      h1b: false
+      adzuna: false
+      linkedin: true
+
+  adzuna_only:
+    description: "Train only on Adzuna job board data"
+    sources:
+      h1b: false
+      adzuna: true
+      linkedin: false

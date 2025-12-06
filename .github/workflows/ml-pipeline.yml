@@ -1,5 +1,19 @@
 name: ML Pipeline
 
+# This workflow collects salary data and trains the ML model
+#
+# Data Collection Strategy:
+#   - H1B: Can be forced or cached from S3 (updated annually)
+#   - Adzuna: Can be forced or cached from S3 (API rate limits)
+#   - LinkedIn: ALWAYS from S3 (has dedicated collection workflow)
+#
+# Training Profiles:
+#   - all: Train on all available sources (default)
+#   - h1b_only: Train only on government H1B data
+#   - linkedin_only: Train only on LinkedIn data with rich features
+#   - h1b_linkedin: Train on H1B + LinkedIn (highest quality sources)
+#   - external_only: Train on external sources only (Adzuna + LinkedIn)
+
 on:
   push:
     branches: [main]
@@ -16,8 +30,25 @@ on:
       - '.github/workflows/ml-pipeline.yml'
   workflow_dispatch:
     inputs:
-      force_collect:
-        description: 'Force data collection from APIs (ignore S3 cache)'
+      training_profile:
+        description: 'Training profile to use (determines which data sources to collect/train)'
+        type: choice
+        options:
+          - all
+          - h1b_only
+          - linkedin_only
+          - adzuna_only
+        default: all
+      force_refresh:
+        description: 'Force data collection for ALL sources in selected profile (ignore S3 cache)'
+        type: boolean
+        default: false
+      force_h1b:
+        description: 'Force only H1B collection (only if profile includes H1B)'
+        type: boolean
+        default: false
+      force_adzuna:
+        description: 'Force only Adzuna collection (only if profile includes Adzuna)'
         type: boolean
         default: false
 
@@ -35,7 +66,7 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     outputs:
-      data_source: ${{ steps.check-cache.outputs.source }}
+      collect_sources: ${{ steps.check-cache.outputs.collect_sources }}
     steps:
       - uses: actions/checkout@v4
 
@@ -54,134 +85,289 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Try to pull cached data from S3
+      # Try to pull cached data from S3 (per-source control)
       - name: Check S3 cache
         id: check-cache
         run: |
-          mkdir -p data/raw
+          # Create hierarchical directory structure
+          mkdir -p data/h1b/raw data/h1b/processed
+          mkdir -p data/linkedin/raw data/linkedin/processed
+          mkdir -p data/adzuna/raw data/adzuna/processed
 
+          # Track which sources need collection
+          collect_sources=""
+
+          # Determine which sources are needed based on training profile
+          PROFILE="${{ inputs.training_profile }}"
+          NEEDS_H1B=false
+          NEEDS_ADZUNA=false
+          NEEDS_LINKEDIN=false
+
+          case "$PROFILE" in
+            "all")
+              NEEDS_H1B=true
+              NEEDS_ADZUNA=true
+              NEEDS_LINKEDIN=true
+              ;;
+            "h1b_only")
+              NEEDS_H1B=true
+              ;;
+            "linkedin_only")
+              NEEDS_LINKEDIN=true
+              ;;
+            "h1b_linkedin")
+              NEEDS_H1B=true
+              NEEDS_LINKEDIN=true
+              ;;
+            "external_only")
+              NEEDS_ADZUNA=true
+              NEEDS_LINKEDIN=true
+              ;;
+            *)
+              # Default to all if unknown profile
+              NEEDS_H1B=true
+              NEEDS_ADZUNA=true
+              NEEDS_LINKEDIN=true
+              ;;
+          esac
+
+          echo "Training profile: $PROFILE"
+          echo "  Needs H1B: $NEEDS_H1B"
+          echo "  Needs Adzuna: $NEEDS_ADZUNA"
+          echo "  Needs LinkedIn: $NEEDS_LINKEDIN"
+
+          # PR builds: collect H1B and Adzuna if needed by profile
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "source=api" >> $GITHUB_OUTPUT
-            echo "PR build - will collect from APIs"
-          elif [ "${{ inputs.force_collect }}" = "true" ]; then
-            echo "source=api" >> $GITHUB_OUTPUT
-            echo "Force collect enabled - will collect from APIs"
+            [ "$NEEDS_H1B" = "true" ] && collect_sources="$collect_sources h1b"
+            [ "$NEEDS_ADZUNA" = "true" ] && collect_sources="$collect_sources adzuna"
+            echo "PR build - will collect needed sources: $collect_sources"
           else
-            # Try to download from S3 (parquet files and H1B source files)
-            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/parquet/ data/raw/ --exclude "*" --include "*.parquet" 2>/dev/null && \
-               aws s3 sync s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/ data/raw/ --exclude "*" --include "*.xlsx" 2>/dev/null; then
-              # Check if we got any parquet data
-              if [ "$(ls -A data/raw/*.parquet 2>/dev/null)" ]; then
-                echo "source=s3" >> $GITHUB_OUTPUT
-                echo "Using cached data from S3"
+            # Check H1B (only if needed by profile)
+            if [ "$NEEDS_H1B" = "true" ]; then
+              if [ "${{ inputs.force_refresh }}" = "true" ] || [ "${{ inputs.force_h1b }}" = "true" ]; then
+                collect_sources="$collect_sources h1b"
+                echo "Force H1B collection enabled"
               else
-                echo "source=api" >> $GITHUB_OUTPUT
-                echo "S3 cache empty - will collect from APIs"
+                # Try to download from S3
+                if aws s3 sync s3://${{ env.S3_BUCKET }}/data/h1b/ data/h1b/ 2>/dev/null && \
+                   [ -f "data/h1b/processed/h1b_ai_salaries.parquet" ]; then
+                  echo "Using cached H1B data from S3"
+                else
+                  collect_sources="$collect_sources h1b"
+                  echo "H1B S3 cache miss - will collect from APIs"
+                fi
               fi
             else
-              echo "source=api" >> $GITHUB_OUTPUT
-              echo "S3 not available - will collect from APIs"
+              echo "H1B not needed for profile '$PROFILE' - skipping"
+            fi
+
+            # Check Adzuna (only if needed by profile)
+            if [ "$NEEDS_ADZUNA" = "true" ]; then
+              if [ "${{ inputs.force_refresh }}" = "true" ] || [ "${{ inputs.force_adzuna }}" = "true" ]; then
+                collect_sources="$collect_sources adzuna"
+                echo "Force Adzuna collection enabled"
+              else
+                # Try to download from S3
+                if aws s3 sync s3://${{ env.S3_BUCKET }}/data/adzuna/processed/ data/adzuna/processed/ 2>/dev/null && \
+                   [ -f "data/adzuna/processed/adzuna_jobs.parquet" ]; then
+                  echo "Using cached Adzuna data from S3"
+                else
+                  collect_sources="$collect_sources adzuna"
+                  echo "Adzuna S3 cache miss - will collect from APIs"
+                fi
+              fi
+            else
+              echo "Adzuna not needed for profile '$PROFILE' - skipping"
             fi
           fi
 
-      # Only collect from APIs if S3 cache miss
+          # LinkedIn: ALWAYS from S3 (has separate workflow, only if needed by profile)
+          if [ "$NEEDS_LINKEDIN" = "true" ]; then
+            echo "LinkedIn: Downloading consolidated data from S3"
+
+            # Download the comprehensive consolidated parquet file
+            mkdir -p data/linkedin/processed
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/linkedin/processed/linkedin_ai_jobs.parquet \
+              data/linkedin/processed/linkedin_ai_jobs.parquet 2>/dev/null || \
+              echo "  Warning: No consolidated LinkedIn data in S3"
+          else
+            echo "LinkedIn not needed for profile '$PROFILE' - skipping"
+          fi
+
+          # Set outputs
+          if [ -n "$collect_sources" ]; then
+            echo "collect_sources=$collect_sources" >> $GITHUB_OUTPUT
+            echo "Will collect: $collect_sources"
+          else
+            echo "collect_sources=" >> $GITHUB_OUTPUT
+            echo "All data from S3 cache"
+          fi
+
+      # Collect from APIs (only needed sources)
       - name: Collect data from APIs
-        if: steps.check-cache.outputs.source == 'api'
+        if: steps.check-cache.outputs.collect_sources != ''
         env:
           BLS_API_KEY: ${{ secrets.BLS_API_KEY }}
           ADZUNA_APP_ID: ${{ secrets.ADZUNA_APP_ID }}
           ADZUNA_API_KEY: ${{ secrets.ADZUNA_API_KEY }}
-        run: python -m src.main collect --source h1b --source bls --source jobs --source linkedin
-
-      # Fallback: Download missing files from S3 cache
-      - name: Fallback to S3 cache for missing files
-        if: steps.check-cache.outputs.source == 'api' && github.event_name != 'pull_request'
         run: |
-          echo "Checking for missing data files..."
-          EXPECTED_FILES="adzuna_jobs.parquet h1b_ai_salaries.parquet bls_wage_data.parquet linkedin_ai_jobs.parquet h1b_lca_fy2023.xlsx h1b_lca_fy2024.xlsx"
-          MISSING_FILES=""
+          sources="${{ steps.check-cache.outputs.collect_sources }}"
 
-          for file in $EXPECTED_FILES; do
-            if [ ! -f "data/raw/$file" ]; then
-              echo "  Missing: $file"
-              MISSING_FILES="$MISSING_FILES $file"
+          # Build command with only needed sources
+          cmd="python -m src.main collect"
+          for source in $sources; do
+            if [ "$source" = "h1b" ]; then
+              cmd="$cmd --source h1b"
+            elif [ "$source" = "adzuna" ]; then
+              cmd="$cmd --source jobs"
             fi
           done
 
-          if [ -n "$MISSING_FILES" ]; then
-            echo "Attempting to download missing files from S3 cache..."
-            for file in $MISSING_FILES; do
-              # Determine S3 path based on file type
-              if [[ "$file" == *.parquet ]]; then
-                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/parquet/$file"
-              elif [[ "$file" == *.xlsx ]]; then
-                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/$file"
-              else
-                s3_path="s3://${{ env.S3_BUCKET }}/data/raw/$file"
-              fi
+          echo "Running: $cmd"
+          $cmd
 
-              if aws s3 cp "$s3_path" data/raw/$file 2>/dev/null; then
-                echo "  ✓ Recovered $file from S3 cache"
-                # Track fallback for parquet files only (for summary reporting)
-                if [[ "$file" == *.parquet ]]; then
-                  # Replace dots with underscores for valid bash variable names
-                  safe_name=$(echo "$file" | tr '.' '_')
-                  echo "CACHE_FALLBACK_${safe_name}=true" >> $GITHUB_ENV
-                fi
-              else
-                echo "  ✗ Could not recover $file from S3"
-              fi
-            done
-          else
-            echo "All expected files present - no fallback needed"
+      # Fallback: Download missing files from S3 cache
+      - name: Fallback to S3 cache for missing files
+        if: steps.check-cache.outputs.collect_sources != '' && github.event_name != 'pull_request'
+        run: |
+          echo "Checking for missing data files..."
+
+          # Check H1B files
+          if [ ! -f "data/h1b/processed/h1b_ai_salaries.parquet" ]; then
+            echo "  Missing: h1b_ai_salaries.parquet"
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/h1b/processed/h1b_ai_salaries.parquet data/h1b/processed/ 2>/dev/null && \
+              echo "  ✓ Recovered h1b_ai_salaries.parquet" || echo "  ✗ Could not recover"
+          fi
+
+          if [ ! -f "data/h1b/raw/h1b_lca_fy2023.xlsx" ]; then
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/h1b/raw/h1b_lca_fy2023.xlsx data/h1b/raw/ 2>/dev/null && \
+              echo "  ✓ Recovered h1b_lca_fy2023.xlsx" || echo "  ✗ Could not recover"
+          fi
+
+          if [ ! -f "data/h1b/raw/h1b_lca_fy2024.xlsx" ]; then
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/h1b/raw/h1b_lca_fy2024.xlsx data/h1b/raw/ 2>/dev/null && \
+              echo "  ✓ Recovered h1b_lca_fy2024.xlsx" || echo "  ✗ Could not recover"
+          fi
+
+          # Check LinkedIn file
+          if [ ! -f "data/linkedin/processed/linkedin_ai_jobs.parquet" ]; then
+            echo "  Missing: linkedin_ai_jobs.parquet"
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/linkedin/processed/linkedin_ai_jobs.parquet data/linkedin/processed/ 2>/dev/null && \
+              echo "  ✓ Recovered linkedin_ai_jobs.parquet" || echo "  ✗ Could not recover"
+          fi
+
+          # Check Adzuna file
+          if [ ! -f "data/adzuna/processed/adzuna_jobs.parquet" ]; then
+            echo "  Missing: adzuna_jobs.parquet"
+            aws s3 cp s3://${{ env.S3_BUCKET }}/data/adzuna/processed/adzuna_jobs.parquet data/adzuna/processed/ 2>/dev/null && \
+              echo "  ✓ Recovered adzuna_jobs.parquet" || echo "  ✗ Could not recover"
           fi
 
       - name: Summary
         run: |
           echo "## Data Collection" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Source:** ${{ steps.check-cache.outputs.source }}" >> $GITHUB_STEP_SUMMARY
+
+          collected="${{ steps.check-cache.outputs.collect_sources }}"
+          if [ -n "$collected" ]; then
+            echo "**Collected from APIs:** $collected" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**All data from S3 cache**" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Source | Records | Origin |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|---------|--------|" >> $GITHUB_STEP_SUMMARY
-          for f in data/raw/*.parquet; do
-            name=$(basename "$f" .parquet)
-            filename=$(basename "$f")
-            count=$(python -c "import pandas as pd; print(len(pd.read_parquet('$f')))" 2>/dev/null || echo "0")
-            # Check if this file was recovered from cache fallback
-            origin="${{ steps.check-cache.outputs.source }}"
-            # Replace dots with underscores to match env var naming
-            safe_name=$(echo "$filename" | tr '.' '_')
-            varname="CACHE_FALLBACK_${safe_name}"
-            if [ "$origin" = "api" ] && [ -n "${!varname}" ]; then
-              origin="s3-fallback"
-            fi
-            echo "| $name | $count | $origin |" >> $GITHUB_STEP_SUMMARY
-          done
+
+          # Check H1B
+          if [ -f "data/h1b/processed/h1b_ai_salaries.parquet" ]; then
+            count=$(python -c "import pandas as pd; print(len(pd.read_parquet('data/h1b/processed/h1b_ai_salaries.parquet')))" 2>/dev/null || echo "0")
+            origin="s3"
+            if echo "$collected" | grep -q "h1b"; then origin="api"; fi
+            echo "| H1B | $count | $origin |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check LinkedIn (always S3)
+          if [ -f "data/linkedin/processed/linkedin_ai_jobs.parquet" ]; then
+            count=$(python -c "import pandas as pd; print(len(pd.read_parquet('data/linkedin/processed/linkedin_ai_jobs.parquet')))" 2>/dev/null || echo "0")
+            echo "| LinkedIn | $count | s3 |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Check Adzuna
+          if [ -f "data/adzuna/processed/adzuna_jobs.parquet" ]; then
+            count=$(python -c "import pandas as pd; print(len(pd.read_parquet('data/adzuna/processed/adzuna_jobs.parquet')))" 2>/dev/null || echo "0")
+            origin="s3"
+            if echo "$collected" | grep -q "adzuna"; then origin="api"; fi
+            echo "| Adzuna | $count | $origin |" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Data Samples" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Show sample data from each source
+          python -c "
+          import pandas as pd
+          import sys
+          import json
+
+          def show_sample(file_path, source_name):
+              try:
+                  df = pd.read_parquet(file_path)
+                  if len(df) == 0:
+                      return
+
+                  # Get sample of 3 records
+                  sample_df = df.head(3)
+
+                  print(f'<details>')
+                  print(f'<summary><b>{source_name}</b> (showing 3 of {len(df):,} records)</summary>')
+                  print(f'')
+                  print(f'\`\`\`json')
+
+                  # Convert each record to JSON for clean display
+                  for i, (_, row) in enumerate(sample_df.iterrows(), 1):
+                      record = row.to_dict()
+                      print(json.dumps(record, indent=2, default=str))
+                      if i < len(sample_df):
+                          print()
+
+                  print(f'\`\`\`')
+                  print(f'</details>')
+                  print(f'')
+              except Exception as e:
+                  print(f'<!-- Error loading {source_name}: {str(e)} -->', file=sys.stderr)
+
+          # Show samples from each source
+          show_sample('data/h1b/processed/h1b_ai_salaries.parquet', 'H1B Data')
+          show_sample('data/linkedin/processed/linkedin_ai_jobs.parquet', 'LinkedIn Data')
+          show_sample('data/adzuna/processed/adzuna_jobs.parquet', 'Adzuna Data')
+          " >> $GITHUB_STEP_SUMMARY 2>&1 || echo "Could not generate data samples" >> $GITHUB_STEP_SUMMARY
 
       - uses: actions/upload-artifact@v4
         with:
-          name: raw-data
-          path: data/raw/
+          name: collected-data
+          path: data/
           retention-days: 1
 
       # Upload to S3 only if we collected fresh data
-      - name: Upload raw data to S3
-        if: github.event_name != 'pull_request' && steps.check-cache.outputs.source == 'api'
+      - name: Upload collected data to S3
+        if: github.event_name != 'pull_request' && steps.check-cache.outputs.collect_sources != ''
         run: |
-          # Upload parquet files
-          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/parquet/ \
-            --exclude "*" --include "*.parquet" \
+          # Upload hierarchical structure
+          aws s3 sync data/h1b/ s3://${{ env.S3_BUCKET }}/data/h1b/ \
             --delete \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
 
-          # Upload H1B source files
-          aws s3 sync data/raw/ s3://${{ env.S3_BUCKET }}/data/raw/h1b-source/ \
-            --exclude "*" --include "*.xlsx" \
+          aws s3 sync data/linkedin/processed/ s3://${{ env.S3_BUCKET }}/data/linkedin/processed/ \
             --delete \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
 
-          echo "Raw data uploaded to s3://${{ env.S3_BUCKET }}/data/raw/parquet/ and h1b-source/"
+          aws s3 sync data/adzuna/processed/ s3://${{ env.S3_BUCKET }}/data/adzuna/processed/ \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+
+          echo "Data uploaded to s3://${{ env.S3_BUCKET }}/data/"
 
   merge:
     needs: collect
@@ -205,53 +391,48 @@ jobs:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      # Check S3 cache for processed data
-      - name: Check S3 cache
+      # Always run merge to ensure latest data is used
+      - name: Prepare merge
         id: check-cache
         run: |
-          mkdir -p data/processed
+          mkdir -p data/merged
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "source=merge" >> $GITHUB_OUTPUT
-            echo "PR build - will run merge"
-          elif [ "${{ needs.collect.outputs.data_source }}" = "api" ]; then
-            echo "source=merge" >> $GITHUB_OUTPUT
-            echo "Fresh data collected - will run merge"
-          else
-            # Try to download processed data from S3
-            if aws s3 sync s3://${{ env.S3_BUCKET }}/data/processed/ data/processed/ 2>/dev/null; then
-              if [ -f "data/processed/merged_salary_data.parquet" ]; then
-                echo "source=s3" >> $GITHUB_OUTPUT
-                echo "Using cached processed data from S3"
-              else
-                echo "source=merge" >> $GITHUB_OUTPUT
-                echo "S3 cache empty - will run merge"
-              fi
-            else
-              echo "source=merge" >> $GITHUB_OUTPUT
-              echo "S3 not available - will run merge"
-            fi
-          fi
+          # Always run fresh merge (fast operation, ensures latest data)
+          # This avoids stale cache issues when source data is updated
+          echo "source=merge" >> $GITHUB_OUTPUT
+          echo "Running fresh merge with latest data"
 
       - uses: actions/download-artifact@v4
         if: steps.check-cache.outputs.source == 'merge'
         with:
-          name: raw-data
-          path: data/raw/
+          name: collected-data
+          path: data/
 
       - name: Merge data
         if: steps.check-cache.outputs.source == 'merge'
-        run: python -m src.main merge
+        run: |
+          PROFILE="${{ inputs.training_profile }}"
+          if [ -z "$PROFILE" ]; then
+            PROFILE="all"
+          fi
+          echo "Using training profile: $PROFILE"
+          python -m src.main merge --profile "$PROFILE"
 
       - name: Summary
         run: |
           echo "## Data Merge" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Source:** ${{ steps.check-cache.outputs.source }}" >> $GITHUB_STEP_SUMMARY
+
+          PROFILE="${{ inputs.training_profile }}"
+          if [ -n "$PROFILE" ] && [ "$PROFILE" != "all" ]; then
+            echo "**Training Profile:** $PROFILE" >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           python -c "
           import pandas as pd
-          df = pd.read_parquet('data/processed/merged_salary_data.parquet')
+          df = pd.read_parquet('data/merged/merged_salary_data.parquet')
           print(f'**Total records:** {len(df)}')
           print(f'')
           print(f'**Salary range:** \${df[\"annual_salary\"].min():,.0f} - \${df[\"annual_salary\"].max():,.0f}')
@@ -261,17 +442,96 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: processed-data
-          path: data/processed/
+          name: merged-data
+          path: data/merged/
           retention-days: 1
 
-      - name: Upload processed data to S3
+      - name: Upload merged data to S3
         if: github.event_name != 'pull_request' && steps.check-cache.outputs.source == 'merge'
         run: |
-          aws s3 sync data/processed/ s3://${{ env.S3_BUCKET }}/data/processed/ \
+          aws s3 sync data/merged/ s3://${{ env.S3_BUCKET }}/data/merged/ \
             --delete \
             --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
-          echo "Processed data uploaded to s3://${{ env.S3_BUCKET }}/data/processed/"
+          echo "Merged data uploaded to s3://${{ env.S3_BUCKET }}/data/merged/"
+
+  eda:
+    needs: merge
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: merged-data
+          path: data/merged/
+
+      - name: Generate EDA Report
+        run: python -m src.analysis.eda_report --keep-latest-only
+
+      - name: Summary
+        run: |
+          echo "## EDA Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Generated" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Extract key stats from JSON
+          if [ -f "docs/reports/eda_stats_"*.json ]; then
+            python -c "
+          import json
+          import glob
+          stats_file = sorted(glob.glob('docs/reports/eda_stats_*.json'))[-1]
+          with open(stats_file) as f:
+              stats = json.load(f)
+          merged = stats.get('merged', {})
+          sal = merged.get('salary', {})
+          print(f'**Total records:** {merged.get(\"records\", 0):,}')
+          print(f'')
+          print(f'**Salary statistics:**')
+          print(f'- Median: \${sal.get(\"median\", 0):,.0f}')
+          print(f'- Mean: \${sal.get(\"mean\", 0):,.0f}')
+          print(f'- Range: \${sal.get(\"min\", 0):,.0f} - \${sal.get(\"max\", 0):,.0f}')
+          " >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eda-reports
+          path: docs/reports/
+          retention-days: 30
+
+      - name: Configure AWS credentials
+        if: github.event_name != 'pull_request'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload EDA reports to S3
+        if: github.event_name != 'pull_request'
+        run: |
+          # Upload only latest reports
+          aws s3 sync docs/reports/ s3://${{ env.S3_BUCKET }}/eda/latest/ \
+            --exclude "*" \
+            --include "eda_report_latest.html" \
+            --include "eda_stats_*.json" \
+            --include "*_latest.png" \
+            --include "salary_distributions_*.png" \
+            --include "source_comparison_*.png" \
+            --include "location_analysis_*.png" \
+            --include "quality_metrics_*.png" \
+            --include "skills_analysis_*.png" \
+            --delete \
+            --metadata "pipeline-run=${{ github.run_id }},commit=${{ github.sha }}"
+
+          echo "EDA reports uploaded to s3://${{ env.S3_BUCKET }}/eda/latest/"
 
   train:
     needs: merge
@@ -288,15 +548,44 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          name: processed-data
-          path: data/processed/
+          name: merged-data
+          path: data/merged/
 
       - name: Train model
-        run: python -m src.main train 2>&1 | tee train.log
+        run: |
+          PROFILE="${{ inputs.training_profile }}"
+          if [ -z "$PROFILE" ]; then
+            PROFILE="all"
+          fi
+          echo "Using training profile: $PROFILE"
+          python -m src.main train --profile "$PROFILE" 2>&1 | tee train.log
+        continue-on-error: true
+        id: train
 
       - name: Summary
+        if: always()
         run: |
           echo "## Model Training" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          PROFILE="${{ inputs.training_profile }}"
+          if [ -n "$PROFILE" ] && [ "$PROFILE" != "all" ]; then
+            echo "**Training Profile:** $PROFILE" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Show training status
+          if [ "${{ steps.train.outcome }}" == "success" ]; then
+            echo "**Status:** ✅ Success" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Status:** ❌ Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Error Log (last 50 lines)" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            tail -50 train.log >> $GITHUB_STEP_SUMMARY || echo "No log available"
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
+
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Metrics" >> $GITHUB_STEP_SUMMARY
           grep -A6 "Test Metrics:" train.log | tail -5 >> $GITHUB_STEP_SUMMARY || echo "No test metrics found"
@@ -306,10 +595,28 @@ jobs:
           grep -A15 "Top 15" train.log | tail -15 >> $GITHUB_STEP_SUMMARY || echo "No feature importance found"
           echo '```' >> $GITHUB_STEP_SUMMARY
 
+      - name: Generate MLflow report
+        if: steps.train.outcome == 'success'
+        run: |
+          python scripts/generate_mlflow_report.py \
+            --mlruns mlruns \
+            --experiment salary_prediction \
+            --model-dir models \
+            --train-log train.log \
+            --output docs/mlflow
+
       - uses: actions/upload-artifact@v4
         with:
           name: model
           path: models/
+          retention-days: 7
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v4
+        if: steps.train.outcome == 'success'
+        with:
+          name: mlflow-report
+          path: docs/mlflow/
           retention-days: 7
           if-no-files-found: warn
 
@@ -323,6 +630,12 @@ jobs:
       - name: Upload model to S3
         if: github.event_name != 'pull_request'
         run: |
+          # Only upload if models directory exists (training succeeded)
+          if [ ! -d "models/" ] || [ -z "$(ls -A models/)" ]; then
+            echo "No models found to upload. Training may have failed."
+            exit 0
+          fi
+
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
           aws s3 sync models/ s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/ \
@@ -334,3 +647,112 @@ jobs:
 
           echo "Model uploaded to s3://${{ env.S3_BUCKET }}/models/latest/"
           echo "Model versioned at s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/"
+
+  deploy-pages:
+    needs: [eda, train]
+    if: ${{ github.event_name != 'pull_request' && always() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to push to gh-pages branch
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download EDA reports
+        if: needs.eda.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: eda-reports
+          path: site/eda
+
+      - name: Download MLflow report
+        if: needs.train.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: mlflow-report
+          path: site/mlflow
+
+      - name: Prepare site content
+        run: |
+          rm -rf site_root
+          mkdir -p site_root
+
+          if [ -d site/eda ]; then
+            mkdir -p site_root/reports
+            if [ -d site/eda/docs/reports ]; then
+              cp -R site/eda/docs/reports/. site_root/reports/
+            else
+              cp -R site/eda/. site_root/reports/
+            fi
+          fi
+
+          if [ ! -d site_root/reports ] && [ -d docs/reports ]; then
+            echo "Using repo docs/reports as fallback"
+            mkdir -p site_root/reports
+            cp -R docs/reports/. site_root/reports/
+          fi
+
+          if [ -d site_root/reports ]; then
+            if [ -f site_root/reports/eda_report_latest.html ]; then
+              mv site_root/reports/eda_report_latest.html site_root/reports/index.html
+            fi
+          fi
+
+          if [ -d site/mlflow ]; then
+            mkdir -p site_root/mlflow
+            if [ -d site/mlflow/docs/mlflow ]; then
+              cp -R site/mlflow/docs/mlflow/. site_root/mlflow/
+            else
+              cp -R site/mlflow/. site_root/mlflow/
+            fi
+          fi
+
+          if [ ! -d site_root/mlflow ] && [ -d docs/mlflow ]; then
+            echo "Using repo docs/mlflow as fallback"
+            mkdir -p site_root/mlflow
+            cp -R docs/mlflow/. site_root/mlflow/
+          fi
+
+          python3 -c 'import pathlib; pathlib.Path("site_root/index.html").write_text("""<!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8" />
+              <title>AI Salary Project Reports</title>
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, '"'"'Segoe UI'"'"', sans-serif; margin: 40px; background: #f5f7fb; color: #14213d; }
+                .card { background: white; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(20, 33, 61, 0.08); }
+                h1 { color: #14213d; }
+                a { display: inline-flex; align-items: center; padding: 12px 18px; margin-top: 12px; border-radius: 8px; font-weight: 600; text-decoration: none; }
+                a.reports { background: #0077ff; color: white; }
+                a.mlflow { background: #fca311; color: #14213d; }
+                a span { margin-left: 8px; }
+              </style>
+            </head>
+            <body>
+              <h1>AI Salary Intelligence Reports</h1>
+              <div class="card">
+                <h2>Exploratory Data Analysis</h2>
+                <p>Latest salary data quality, trends, and comparisons across sources.</p>
+                <a class="reports" href="./reports/" rel="noopener">
+                  View EDA Report<span>→</span>
+                </a>
+              </div>
+              <div class="card">
+                <h2>MLflow Training Summary</h2>
+                <p>Most recent training run parameters, metrics, and feature importance.</p>
+                <a class="mlflow" href="./mlflow/" rel="noopener">
+                  View MLflow Report<span>→</span>
+                </a>
+              </div>
+            </body>
+          </html>""")'
+
+          echo "Publishing contents:"
+          find site_root -maxdepth 2 -type f | sort
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site_root
+          publish_branch: gh-pages

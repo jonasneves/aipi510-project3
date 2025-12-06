@@ -26,8 +26,8 @@ cp .env.example .env
 ```
 
 Required keys:
-- `BLS_API_KEY` - [BLS API](https://www.bls.gov/developers/)
 - `ADZUNA_APP_ID` / `ADZUNA_API_KEY` - [Adzuna API](https://developer.adzuna.com/)
+- `AWS_PROFILE` - AWS credentials for LinkedIn data (S3)
 
 ## Running the Pipeline
 

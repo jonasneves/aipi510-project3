@@ -1,15 +1,10 @@
 """
 Adzuna Job Postings API Collector
 
-Collects job posting data with salary information from the Adzuna API.
-Adzuna aggregates job postings from multiple sources and provides salary estimates.
+Collects job postings with salary estimates, rate limiting, and retry logic.
 
 API Documentation: https://developer.adzuna.com/
 """
-
-## AI Tool Attribution: Built with assistance from Claude Code CLI (https://claude.ai/claude-code)
-## Built Adzuna API integration for job posting data collection with rate limiting,
-## retry logic, and salary range extraction for market trend analysis.
 
 import os
 from pathlib import Path
@@ -460,10 +455,9 @@ class AdzunaJobsCollector:
         """
         results = {}
 
-        print("Collecting job postings...")
-        print(f"  Using {len(self.AI_SEARCH_QUERIES) if not max_queries else max_queries} queries")
-        print(f"  Using {len(self.LOCATIONS) if not max_locations else max_locations} locations")
-        print(f"  Max {max_pages} pages per query")
+        n_queries = len(self.AI_SEARCH_QUERIES) if not max_queries else max_queries
+        n_locations = len(self.LOCATIONS) if not max_locations else max_locations
+        print(f"Collecting job postings ({n_queries} queries, {n_locations} locations)...")
 
         jobs_df = self.fetch_jobs(
             max_queries=max_queries,
@@ -473,7 +467,7 @@ class AdzunaJobsCollector:
         results["jobs"] = jobs_df
 
         if include_histograms and self._check_credentials():
-            print("\nCollecting salary distributions...")
+            print("Collecting salary distributions...")
             histogram_df = self.fetch_salary_distributions(max_queries=max_queries)
             results["salary_histograms"] = histogram_df
 

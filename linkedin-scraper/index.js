@@ -193,7 +193,6 @@ class Query {
     const cachedJobs = cache.get(cacheKey);
 
     if (cachedJobs) {
-      console.log("Returning cached results");
       return cachedJobs;
     }
 
@@ -211,9 +210,6 @@ class Query {
     let start = 0;
     let hasMore = true;
     let consecutiveErrors = 0;
-
-    console.log(this.buildUrl(0));
-    console.log(this.getCacheKey());
 
     while (hasMore) {
       try {
