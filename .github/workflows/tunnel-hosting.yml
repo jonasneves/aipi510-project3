@@ -211,7 +211,7 @@ jobs:
       - name: Install cloudflared
         if: steps.cloudflared-cache.outputs.cache-hit != 'true'
         run: |
-          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o cloudflared
+          curl -L https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-arm64 -o cloudflared
           chmod +x cloudflared
           sudo mv cloudflared /usr/local/bin/
 
@@ -253,8 +253,8 @@ jobs:
           # Start static file server on port 8501 (Cloudflare routes /* here)
           echo ""
           echo "=== Starting Frontend ==="
-          # Enable CORS and cache headers for better performance
-          npx serve -s frontend-react/dist -l 8501 --cors --cache 3600 &
+          # Enable CORS for better performance
+          npx serve -s frontend-react/dist -l 8501 --cors &
           SERVE_PID=$!
           echo "Frontend PID: $SERVE_PID"
           sleep 3
@@ -363,7 +363,7 @@ jobs:
             if [ "$FRONTEND_OK" = "DOWN" ]; then
               echo "Restarting Frontend..."
               pkill -f "serve.*8501" || true
-              npx serve -s frontend-react/dist -l 8501 --cors --cache 3600 &
+              npx serve -s frontend-react/dist -l 8501 --cors &
               sleep 3
             fi
 
