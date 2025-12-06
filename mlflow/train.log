@@ -1,12 +1,12 @@
-/opt/hostedtoolcache/Python/3.11.14/x64/lib/python3.11/site-packages/mlflow/tracking/_tracking_service/utils.py:177: FutureWarning: The filesystem tracking backend (e.g., './mlruns') will be deprecated in February 2026. Consider transitioning to a database backend (e.g., 'sqlite:///mlflow.db') to take advantage of the latest MLflow features. See https://github.com/mlflow/mlflow/issues/18534 for more details and migration guidance.
+/opt/hostedtoolcache/Python/3.11.14/arm64/lib/python3.11/site-packages/mlflow/tracking/_tracking_service/utils.py:177: FutureWarning: The filesystem tracking backend (e.g., './mlruns') will be deprecated in February 2026. Consider transitioning to a database backend (e.g., 'sqlite:///mlflow.db') to take advantage of the latest MLflow features. See https://github.com/mlflow/mlflow/issues/18534 for more details and migration guidance.
   return FileStore(store_uri, store_uri)
-2025/12/06 21:32:42 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
-2025-12-06 21:32:42,891 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251206_213242.log
-2025-12-06 21:32:42,891 - DataMerger - INFO - Applying training profile: all
-2025-12-06 21:32:42,891 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
-2025-12-06 21:32:42,892 - DataMerger - INFO -   h1b: enabled
-2025-12-06 21:32:42,892 - DataMerger - INFO -   adzuna: enabled
-2025-12-06 21:32:42,892 - DataMerger - INFO -   linkedin: enabled
+2025/12/06 22:07:39 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
+2025-12-06 22:07:39,787 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251206_220739.log
+2025-12-06 22:07:39,787 - DataMerger - INFO - Applying training profile: all
+2025-12-06 22:07:39,787 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
+2025-12-06 22:07:39,788 - DataMerger - INFO -   h1b: enabled
+2025-12-06 22:07:39,788 - DataMerger - INFO -   adzuna: enabled
+2025-12-06 22:07:39,788 - DataMerger - INFO -   linkedin: enabled
 --- Model Training ---
 
 MLFlow tracking URI: file:./mlruns
@@ -32,7 +32,7 @@ Creating train/test split...
   Test:  1793 samples (15.0%)
 
 Training XGBoost model...
-MLFlow run ID: e258acb07e384cf4abfef1f357e031b1
+MLFlow run ID: fc8e65a7e0074e2ea36464d04d4dd03c
 Training XGBoost salary prediction model...
 Training samples: 8363
 Features: 29
@@ -281,8 +281,8 @@ Top 15 Most Important Features:
   role_architect: 0.0240
   skill_computer_vision: 0.0221
   state_clean_encoded: 0.0215
-Model saved to models/salary_model_20251206_213250.pkl
+Model saved to models/salary_model_20251206_220744.pkl
 
-MLFlow run completed: e258acb07e384cf4abfef1f357e031b1
+MLFlow run completed: fc8e65a7e0074e2ea36464d04d4dd03c
 
 Model training complete!
