@@ -26,13 +26,28 @@ RUN mkdir -p data/raw data/processed models
 ENTRYPOINT ["python", "-m", "src.main", "train"]
 
 
-# API stage
-FROM base as api
+# API stage (optimized with minimal runtime dependencies)
+FROM python:3.11-slim as api
+
+WORKDIR /app
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use minimal runtime requirements for faster builds
+COPY requirements-runtime.txt .
+RUN pip install --no-cache-dir -r requirements-runtime.txt
 
 COPY config.yaml .
+COPY configs/ ./configs/
 COPY api/ ./api/
 COPY src/ ./src/
 COPY models/ ./models/
+
+# Pre-compile Python bytecode for faster startup
+RUN python -m compileall -q api/ src/ || true
 
 EXPOSE 8000
 

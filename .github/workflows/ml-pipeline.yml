@@ -64,7 +64,7 @@ permissions:
 
 jobs:
   collect:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64  # ARM for better performance and cost
     outputs:
       collect_sources: ${{ steps.check-cache.outputs.collect_sources }}
     steps:
@@ -74,6 +74,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+
+      # Advanced pip caching
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-
+            pip-${{ runner.os }}-
 
       - run: pip install -r requirements.txt
 
@@ -371,7 +381,7 @@ jobs:
 
   merge:
     needs: collect
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64  # ARM for better performance and cost
     outputs:
       data_source: ${{ steps.check-cache.outputs.source }}
     steps:
@@ -381,6 +391,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+
+      # Advanced pip caching
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-
+            pip-${{ runner.os }}-
 
       - run: pip install -r requirements.txt
 
@@ -456,7 +476,7 @@ jobs:
 
   eda:
     needs: merge
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64  # ARM for better performance and cost
     steps:
       - uses: actions/checkout@v4
 
@@ -464,6 +484,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+
+      # Advanced pip caching
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-
+            pip-${{ runner.os }}-
 
       - run: pip install -r requirements.txt
 
@@ -535,7 +565,7 @@ jobs:
 
   train:
     needs: merge
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64-4core  # Larger ARM runner for faster training
     steps:
       - uses: actions/checkout@v4
 
@@ -543,6 +573,16 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
+
+      # Advanced pip caching
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            pip-${{ runner.os }}-${{ runner.arch }}-
+            pip-${{ runner.os }}-
 
       - run: pip install -r requirements.txt
 
@@ -649,9 +689,9 @@ jobs:
           echo "Model versioned at s3://${{ env.S3_BUCKET }}/models/${TIMESTAMP}/"
 
   deploy-pages:
-    needs: [eda, train]
+    needs: [eda, train]  # Note: eda and train run in parallel after merge
     if: ${{ github.event_name != 'pull_request' && always() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm64  # ARM for consistency
     permissions:
       contents: write  # Required to push to gh-pages branch
     steps:
