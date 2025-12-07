@@ -1,12 +1,12 @@
 /opt/hostedtoolcache/Python/3.11.14/arm64/lib/python3.11/site-packages/mlflow/tracking/_tracking_service/utils.py:177: FutureWarning: The filesystem tracking backend (e.g., './mlruns') will be deprecated in February 2026. Consider transitioning to a database backend (e.g., 'sqlite:///mlflow.db') to take advantage of the latest MLflow features. See https://github.com/mlflow/mlflow/issues/18534 for more details and migration guidance.
   return FileStore(store_uri, store_uri)
-2025/12/07 01:47:41 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
-2025-12-07 01:47:41,381 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251207_014741.log
-2025-12-07 01:47:41,382 - DataMerger - INFO - Applying training profile: all
-2025-12-07 01:47:41,382 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
-2025-12-07 01:47:41,382 - DataMerger - INFO -   h1b: enabled
-2025-12-07 01:47:41,382 - DataMerger - INFO -   adzuna: enabled
-2025-12-07 01:47:41,382 - DataMerger - INFO -   linkedin: enabled
+2025/12/07 17:09:40 INFO mlflow.tracking.fluent: Experiment with name 'salary_prediction' does not exist. Creating a new experiment.
+2025-12-07 17:09:40,195 - DataMerger - INFO - Data merger initialized. Log file: logs/data_merge_20251207_170940.log
+2025-12-07 17:09:40,195 - DataMerger - INFO - Applying training profile: all
+2025-12-07 17:09:40,195 - DataMerger - INFO -   Description: Train on all available sources (H1B + LinkedIn + Adzuna)
+2025-12-07 17:09:40,195 - DataMerger - INFO -   h1b: enabled
+2025-12-07 17:09:40,195 - DataMerger - INFO -   adzuna: enabled
+2025-12-07 17:09:40,195 - DataMerger - INFO -   linkedin: enabled
 --- Model Training ---
 
 MLFlow tracking URI: file:./mlruns
@@ -32,7 +32,7 @@ Creating train/test split...
   Test:  3804 samples (15.0%)
 
 Training XGBoost model...
-MLFlow run ID: 17a3e56f1b8b49f5acd539c5b2b2cf30
+MLFlow run ID: daf69efb807a44dc978c404936a48e6b
 Training XGBoost salary prediction model...
 Training samples: 17751
 Features: 29
@@ -281,8 +281,8 @@ Top 15 Most Important Features:
   is_director: 0.0255
   role_scientist: 0.0249
   skill_data_engineering: 0.0230
-Model saved to models/salary_model_20251207_014751.pkl
+Model saved to models/salary_model_20251207_170950.pkl
 
-MLFlow run completed: 17a3e56f1b8b49f5acd539c5b2b2cf30
+MLFlow run completed: daf69efb807a44dc978c404936a48e6b
 
 Model training complete!
