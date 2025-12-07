@@ -23,7 +23,7 @@ permissions:
 jobs:
   # Job 1: Generate search query matrix
   generate-matrix:
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-slim
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
       timestamp: ${{ steps.set-matrix.outputs.timestamp }}
