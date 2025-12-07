@@ -1,15 +1,15 @@
 {
-  "generated_at": "2025-12-06T22:57:43.919986Z",
+  "generated_at": "2025-12-07T01:15:57.145903Z",
   "experiment": "salary_prediction",
   "tracking_uri": "file:/home/runner/work/aipi510-project3/aipi510-project3/mlruns",
   "run": {
-    "run_id": "673ee5d5d074473882df9c2c6c899bbc",
+    "run_id": "4451c4b1aff241508b58addae88447ce",
     "status": "FINISHED",
-    "start_time": "2025-12-06 22:57:42Z",
-    "end_time": "2025-12-06 22:57:42Z",
+    "start_time": "2025-12-07 01:15:55Z",
+    "end_time": "2025-12-07 01:15:56Z",
     "user": "runner",
     "params": {
-      "test_samples": "3657",
+      "test_samples": "3730",
       "objective": "reg:squarederror",
       "n_jobs": "-1",
       "learning_rate": "0.1",
@@ -22,88 +22,88 @@
       "n_features": "29",
       "n_estimators": "200",
       "min_child_weight": "3",
-      "train_samples": "17061"
+      "train_samples": "17406"
     },
     "metrics": {
-      "train_median_ae": 24639.5,
-      "test_rmse": 53261.16658713281,
-      "test_mape": 21.22944147389311,
-      "val_r2": 0.7421300212709983,
-      "val_mape": 20.970259540681255,
-      "val_n_samples": 3656.0,
-      "test_median_ae": 26401.1640625,
-      "train_mae": 34606.62706419246,
-      "val_rmse": 51719.91227305681,
-      "val_median_ae": 26273.6875,
-      "test_mae": 36462.54890461216,
-      "train_n_samples": 17061.0,
-      "train_rmse": 49302.661580933716,
-      "train_mape": 20.254288641857173,
-      "val_mae": 35836.001914575354,
-      "test_r2": 0.7276739535849023,
-      "train_r2": 0.767519685592636
+      "train_median_ae": 25129.578125,
+      "test_rmse": 53659.877622704786,
+      "test_mape": 21.415253804773428,
+      "val_r2": 0.73530212123551,
+      "val_mape": 21.037875892165907,
+      "val_n_samples": 3730.0,
+      "test_median_ae": 26682.53125,
+      "train_mae": 35094.53924039454,
+      "val_rmse": 53957.32821088533,
+      "val_median_ae": 26149.171875,
+      "test_mae": 37077.29225204563,
+      "train_n_samples": 17406.0,
+      "train_rmse": 50172.96854468004,
+      "train_mape": 20.44382730573493,
+      "val_mae": 37062.94811058282,
+      "test_r2": 0.7356832123900188,
+      "train_r2": 0.7678592851104469
     }
   },
   "feature_importance": [
     {
       "feature": "year",
-      "importance": 0.23882999
+      "importance": 0.21479025
     },
     {
       "feature": "company_tier_encoded",
-      "importance": 0.07502171
+      "importance": 0.08358182
     },
     {
       "feature": "role_architect",
-      "importance": 0.067084365
-    },
-    {
-      "feature": "is_entry",
-      "importance": 0.06472522
-    },
-    {
-      "feature": "is_staff",
-      "importance": 0.056697972
+      "importance": 0.06252747
     },
     {
       "feature": "is_principal",
-      "importance": 0.054574434
+      "importance": 0.061326593
+    },
+    {
+      "feature": "is_entry",
+      "importance": 0.056214936
+    },
+    {
+      "feature": "is_staff",
+      "importance": 0.052686505
     },
     {
       "feature": "is_secondary_hub",
-      "importance": 0.042042263
+      "importance": 0.05028779
     },
     {
       "feature": "role_engineer",
-      "importance": 0.028181126
-    },
-    {
-      "feature": "is_director",
-      "importance": 0.026765045
-    },
-    {
-      "feature": "skill_deep_learning",
-      "importance": 0.025726244
-    },
-    {
-      "feature": "estimated_yoe",
-      "importance": 0.025546905
-    },
-    {
-      "feature": "role_scientist",
-      "importance": 0.024670592
-    },
-    {
-      "feature": "is_manager",
-      "importance": 0.024336772
+      "importance": 0.027785046
     },
     {
       "feature": "state_clean_encoded",
-      "importance": 0.023440374
+      "importance": 0.027231222
+    },
+    {
+      "feature": "estimated_yoe",
+      "importance": 0.025855668
+    },
+    {
+      "feature": "is_director",
+      "importance": 0.025687926
+    },
+    {
+      "feature": "role_analyst",
+      "importance": 0.02532628
+    },
+    {
+      "feature": "role_scientist",
+      "importance": 0.024892174
     },
     {
       "feature": "is_remote_friendly",
-      "importance": 0.021789014
+      "importance": 0.022295881
+    },
+    {
+      "feature": "skill_deep_learning",
+      "importance": 0.02178668
     }
   ]
 }
