@@ -64,7 +64,7 @@ permissions:
 
 jobs:
   collect:
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest-arm
     outputs:
       collect_sources: ${{ steps.check-cache.outputs.collect_sources }}
     steps:
@@ -381,7 +381,7 @@ jobs:
 
   merge:
     needs: collect
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest-arm
     outputs:
       data_source: ${{ steps.check-cache.outputs.source }}
     steps:
@@ -476,7 +476,7 @@ jobs:
 
   eda:
     needs: merge
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -565,7 +565,7 @@ jobs:
 
   train:
     needs: merge
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest-arm
     steps:
       - uses: actions/checkout@v4
 
@@ -691,7 +691,7 @@ jobs:
   deploy-pages:
     needs: [eda, train]  # Note: eda and train run in parallel after merge
     if: ${{ github.event_name != 'pull_request' && always() }}
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-latest-arm
     permissions:
       contents: write  # Required to push to gh-pages branch
     steps:

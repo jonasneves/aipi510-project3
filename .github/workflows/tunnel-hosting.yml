@@ -43,7 +43,7 @@ env:
 jobs:
   host:
     name: Live Server #${{ matrix.instance }}
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest-arm
     timeout-minutes: 350
     strategy:
       matrix:
@@ -500,7 +500,7 @@ jobs:
 
   notify:
     needs: host
-    runs-on: ubuntu-slim
+    runs-on: ubuntu-latest-arm
     if: always()
     steps:
       - name: Session ended
