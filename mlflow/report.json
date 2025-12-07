@@ -1,15 +1,15 @@
 {
-  "generated_at": "2025-12-07T01:15:57.145903Z",
+  "generated_at": "2025-12-07T01:47:52.241360Z",
   "experiment": "salary_prediction",
   "tracking_uri": "file:/home/runner/work/aipi510-project3/aipi510-project3/mlruns",
   "run": {
-    "run_id": "4451c4b1aff241508b58addae88447ce",
+    "run_id": "17a3e56f1b8b49f5acd539c5b2b2cf30",
     "status": "FINISHED",
-    "start_time": "2025-12-07 01:15:55Z",
-    "end_time": "2025-12-07 01:15:56Z",
+    "start_time": "2025-12-07 01:47:50Z",
+    "end_time": "2025-12-07 01:47:51Z",
     "user": "runner",
     "params": {
-      "test_samples": "3730",
+      "test_samples": "3804",
       "objective": "reg:squarederror",
       "n_jobs": "-1",
       "learning_rate": "0.1",
@@ -22,88 +22,88 @@
       "n_features": "29",
       "n_estimators": "200",
       "min_child_weight": "3",
-      "train_samples": "17406"
+      "train_samples": "17751"
     },
     "metrics": {
-      "train_median_ae": 25129.578125,
-      "test_rmse": 53659.877622704786,
-      "test_mape": 21.415253804773428,
-      "val_r2": 0.73530212123551,
-      "val_mape": 21.037875892165907,
-      "val_n_samples": 3730.0,
-      "test_median_ae": 26682.53125,
-      "train_mae": 35094.53924039454,
-      "val_rmse": 53957.32821088533,
-      "val_median_ae": 26149.171875,
-      "test_mae": 37077.29225204563,
-      "train_n_samples": 17406.0,
-      "train_rmse": 50172.96854468004,
-      "train_mape": 20.44382730573493,
-      "val_mae": 37062.94811058282,
-      "test_r2": 0.7356832123900188,
-      "train_r2": 0.7678592851104469
+      "train_median_ae": 25302.890625,
+      "test_rmse": 53419.33054798275,
+      "test_mape": 21.107957941641644,
+      "val_r2": 0.7315340192282798,
+      "val_mape": 21.0440815150482,
+      "val_n_samples": 3804.0,
+      "test_median_ae": 26481.724375000005,
+      "train_mae": 35462.77157558611,
+      "val_rmse": 54626.61562285414,
+      "val_median_ae": 25481.59375,
+      "test_mae": 36617.19738096411,
+      "train_n_samples": 17751.0,
+      "train_rmse": 50854.31442564539,
+      "train_mape": 20.643135081101295,
+      "val_mae": 37122.502967983266,
+      "test_r2": 0.7401317387719438,
+      "train_r2": 0.767426099539963
     }
   },
   "feature_importance": [
     {
       "feature": "year",
-      "importance": 0.21479025
+      "importance": 0.14734834
     },
     {
       "feature": "company_tier_encoded",
-      "importance": 0.08358182
+      "importance": 0.108304806
     },
     {
       "feature": "role_architect",
-      "importance": 0.06252747
-    },
-    {
-      "feature": "is_principal",
-      "importance": 0.061326593
+      "importance": 0.06556255
     },
     {
       "feature": "is_entry",
-      "importance": 0.056214936
+      "importance": 0.059893616
     },
     {
       "feature": "is_staff",
-      "importance": 0.052686505
+      "importance": 0.05757446
+    },
+    {
+      "feature": "is_principal",
+      "importance": 0.055331435
     },
     {
       "feature": "is_secondary_hub",
-      "importance": 0.05028779
-    },
-    {
-      "feature": "role_engineer",
-      "importance": 0.027785046
-    },
-    {
-      "feature": "state_clean_encoded",
-      "importance": 0.027231222
-    },
-    {
-      "feature": "estimated_yoe",
-      "importance": 0.025855668
-    },
-    {
-      "feature": "is_director",
-      "importance": 0.025687926
+      "importance": 0.050591115
     },
     {
       "feature": "role_analyst",
-      "importance": 0.02532628
+      "importance": 0.032440543
     },
     {
-      "feature": "role_scientist",
-      "importance": 0.024892174
+      "feature": "estimated_yoe",
+      "importance": 0.030253211
     },
     {
-      "feature": "is_remote_friendly",
-      "importance": 0.022295881
+      "feature": "state_clean_encoded",
+      "importance": 0.029351017
     },
     {
       "feature": "skill_deep_learning",
-      "importance": 0.02178668
+      "importance": 0.025673945
+    },
+    {
+      "feature": "role_engineer",
+      "importance": 0.025594627
+    },
+    {
+      "feature": "is_director",
+      "importance": 0.025548428
+    },
+    {
+      "feature": "role_scientist",
+      "importance": 0.024870465
+    },
+    {
+      "feature": "skill_data_engineering",
+      "importance": 0.02295793
     }
   ]
 }
