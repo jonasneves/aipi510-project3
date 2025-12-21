@@ -2,8 +2,8 @@ name: LinkedIn Salary Data Collection
 
 on:
   # Run daily at 1 AM UTC (before ML pipeline at 2 AM)
-  schedule:
-    - cron: '0 1 * * *'
+  # schedule:
+  #   - cron: '0 1 * * *'
 
   # Allow manual trigger
   workflow_dispatch:
