@@ -287,7 +287,7 @@ export default function App() {
       <div
         className="fixed inset-0 z-0 opacity-30"
         style={{
-          backgroundImage: 'url(/background.png)',
+          backgroundImage: `url(${import.meta.env.BASE_URL}background.png)`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -299,7 +299,7 @@ export default function App() {
         {/* Header */}
         <header className="border-b border-border/50 backdrop-blur-sm">
           <div className="container mx-auto px-4 py-4 flex items-center gap-3">
-            <img src="/logo.png" alt="AI Salary Predictor" className="h-8 w-8" />
+            <img src={`${import.meta.env.BASE_URL}logo.png`} alt="AI Salary Predictor" className="h-8 w-8" />
             <div>
               <span className="font-semibold text-lg">AI Salary Predictor</span>
               <p className="text-xs text-muted-foreground">Data-driven insights from H1B, LinkedIn Jobs, and Adzuna</p>
@@ -414,9 +414,9 @@ export default function App() {
                 )}
 
                 {/* Bell Curve Visualization */}
-                <div className="h-48 mb-4">
+                <div className="h-48 mb-4" style={{ minHeight: '192px' }}>
                   {bellCurveData ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer width="100%" height="100%" minHeight={192}>
                       <AreaChart data={bellCurveData} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                         <defs>
                           <linearGradient id="colorDensity" x1="0" y1="0" x2="0" y2="1">
@@ -455,8 +455,8 @@ export default function App() {
                       </AreaChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-full flex items-center justify-center">
-                      <ResponsiveContainer width="100%" height="100%">
+                    <div className="h-full flex items-center justify-center" style={{ minHeight: '192px' }}>
+                      <ResponsiveContainer width="100%" height="100%" minHeight={192}>
                         <AreaChart data={generateBellCurve(100000, 145000, 190000)} margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
                           <defs>
                             <linearGradient id="colorDensityPreview" x1="0" y1="0" x2="0" y2="1">
