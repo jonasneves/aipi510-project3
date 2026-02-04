@@ -1,6 +1,6 @@
-name: ML Pipeline
+name: Pipeline & Deploy
 
-# This workflow collects salary data and trains the ML model
+# This workflow collects salary data, trains the ML model, and deploys the webapp + reports to GitHub Pages
 #
 # Data Collection Strategy:
 #   - H1B: Can be forced or cached from S3 (updated annually)
@@ -21,13 +21,15 @@ on:
       - 'src/**'
       - 'config.yaml'
       - 'requirements.txt'
-      - '.github/workflows/ml-pipeline.yml'
+      - 'frontend-react/**'
+      - '.github/workflows/pipeline-and-deploy.yml'
   pull_request:
     paths:
       - 'src/**'
       - 'config.yaml'
       - 'requirements.txt'
-      - '.github/workflows/ml-pipeline.yml'
+      - 'frontend-react/**'
+      - '.github/workflows/pipeline-and-deploy.yml'
   workflow_dispatch:
     inputs:
       training_profile:
@@ -698,6 +700,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-react/package-lock.json
+
+      - name: Build webapp
+        working-directory: frontend-react
+        run: |
+          npm ci
+          npm run build
+
       - name: Download EDA reports
         if: needs.eda.result == 'success'
         uses: actions/download-artifact@v4
@@ -717,6 +732,13 @@ jobs:
           rm -rf site_root
           mkdir -p site_root
 
+          # Copy webapp to root
+          if [ -d frontend-react/dist ]; then
+            echo "Copying webapp to root..."
+            cp -R frontend-react/dist/. site_root/
+          fi
+
+          # Copy reports to /reports subdirectory
           if [ -d site/eda ]; then
             mkdir -p site_root/reports
             if [ -d site/eda/docs/reports ]; then
@@ -738,6 +760,7 @@ jobs:
             fi
           fi
 
+          # Copy MLflow reports to /mlflow subdirectory
           if [ -d site/mlflow ]; then
             mkdir -p site_root/mlflow
             if [ -d site/mlflow/docs/mlflow ]; then
@@ -752,40 +775,6 @@ jobs:
             mkdir -p site_root/mlflow
             cp -R docs/mlflow/. site_root/mlflow/
           fi
-
-          python3 -c 'import pathlib; pathlib.Path("site_root/index.html").write_text("""<!DOCTYPE html>
-          <html>
-            <head>
-              <meta charset="utf-8" />
-              <title>AI Salary Project Reports</title>
-              <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, '"'"'Segoe UI'"'"', sans-serif; margin: 40px; background: #f5f7fb; color: #14213d; }
-                .card { background: white; border-radius: 10px; padding: 24px; margin-bottom: 16px; box-shadow: 0 10px 30px rgba(20, 33, 61, 0.08); }
-                h1 { color: #14213d; }
-                a { display: inline-flex; align-items: center; padding: 12px 18px; margin-top: 12px; border-radius: 8px; font-weight: 600; text-decoration: none; }
-                a.reports { background: #0077ff; color: white; }
-                a.mlflow { background: #fca311; color: #14213d; }
-                a span { margin-left: 8px; }
-              </style>
-            </head>
-            <body>
-              <h1>AI Salary Intelligence Reports</h1>
-              <div class="card">
-                <h2>Exploratory Data Analysis</h2>
-                <p>Latest salary data quality, trends, and comparisons across sources.</p>
-                <a class="reports" href="./reports/" rel="noopener">
-                  View EDA Report<span>→</span>
-                </a>
-              </div>
-              <div class="card">
-                <h2>MLflow Training Summary</h2>
-                <p>Most recent training run parameters, metrics, and feature importance.</p>
-                <a class="mlflow" href="./mlflow/" rel="noopener">
-                  View MLflow Report<span>→</span>
-                </a>
-              </div>
-            </body>
-          </html>""")'
 
           echo "Publishing contents:"
           find site_root -maxdepth 2 -type f | sort

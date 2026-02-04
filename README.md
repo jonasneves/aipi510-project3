@@ -3,9 +3,11 @@
 [![API Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/api&label=API)](https://aisalary.neevs.io/api)
 [![App Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/app&label=App)](https://aisalary.neevs.io)
 
-[![ML Pipeline](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/ml-pipeline.yml)
+[![Pipeline & Deploy](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml)
 
-**Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs) | [Reports Portal (EDA + MLflow)](https://jonasneves.github.io/aipi510-project3/)
+**Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [GitHub Pages (static)](https://jonasneves.github.io/aipi510-project3/) | [API Docs](https://aisalary.neevs.io/api/docs)
+
+**Reports:** [EDA](https://jonasneves.github.io/aipi510-project3/reports/) | [MLflow](https://jonasneves.github.io/aipi510-project3/mlflow/)
 
 ## Overview
 
