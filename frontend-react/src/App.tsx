@@ -10,6 +10,36 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from './components/ui/tabs'
 // Use /api path in production (Cloudflare routes to API), fallback to localhost for dev
 const API_URL = import.meta.env.VITE_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:8000/api' : '/api')
 
+// Static fallback data for GitHub Pages deployment
+const FALLBACK_OPTIONS: Options = {
+  job_titles: [
+    'ML Engineer', 'Data Scientist', 'AI Researcher', 'ML Researcher',
+    'Deep Learning Engineer', 'Computer Vision Engineer', 'NLP Engineer',
+    'Data Analyst', 'AI Engineer', 'Research Scientist'
+  ],
+  locations: [
+    { code: 'CA', name: 'California' },
+    { code: 'NY', name: 'New York' },
+    { code: 'WA', name: 'Washington' },
+    { code: 'TX', name: 'Texas' },
+    { code: 'MA', name: 'Massachusetts' },
+    { code: 'NC', name: 'North Carolina' },
+    { code: 'IL', name: 'Illinois' },
+    { code: 'GA', name: 'Georgia' },
+    { code: 'VA', name: 'Virginia' },
+    { code: 'CO', name: 'Colorado' }
+  ],
+  skills: [
+    'Python', 'Machine Learning', 'Deep Learning', 'PyTorch', 'TensorFlow',
+    'Computer Vision', 'NLP', 'AWS', 'Docker', 'Kubernetes', 'SQL', 'Spark'
+  ]
+}
+
+const isStaticMode = () => {
+  // Detect GitHub Pages deployment
+  return window.location.hostname.includes('github.io')
+}
+
 interface Options {
   job_titles: string[]
   locations: { code: string; name: string }[]
@@ -106,15 +136,34 @@ export default function App() {
 
   // Fetch options on mount
   useEffect(() => {
+    // Use fallback data in static mode (GitHub Pages)
+    if (isStaticMode()) {
+      setOptions(FALLBACK_OPTIONS)
+      setError('Static demo mode - API predictions disabled. Visit aisalary.neevs.io for live predictions.')
+      return
+    }
+
     fetch(`${API_URL}/options`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('API not available')
+        return res.json()
+      })
       .then(data => setOptions(data))
-      .catch(err => console.error('Failed to fetch options:', err))
+      .catch(err => {
+        console.error('Failed to fetch options:', err)
+        setOptions(FALLBACK_OPTIONS)
+        setError('API unavailable - using demo mode')
+      })
   }, [])
 
   // Auto-predict when inputs change (in manual mode or after resume parsed)
   const predict = useCallback(async () => {
     if (!jobTitle || !location) return
+
+    // Skip prediction in static mode
+    if (isStaticMode()) {
+      return
+    }
 
     setLoading(true)
     setError(null)
@@ -194,6 +243,12 @@ export default function App() {
       return
     }
 
+    // Disable resume upload in static mode
+    if (isStaticMode()) {
+      setError('Resume parsing unavailable in static demo. Visit aisalary.neevs.io for full features.')
+      return
+    }
+
     setUploadedFile(file)
     setParsing(true)
     setError(null)
@@ -264,6 +319,18 @@ export default function App() {
           </div>
         </header>
 
+        {/* Static Mode Banner */}
+        {isStaticMode() && (
+          <div className="bg-yellow-500/10 border-y border-yellow-500/20 py-3 px-4">
+            <div className="container mx-auto text-center">
+              <p className="text-sm text-yellow-600 dark:text-yellow-400">
+                <strong>Static Demo Mode:</strong> API predictions unavailable. For live predictions and resume parsing, visit{' '}
+                <a href="https://aisalary.neevs.io" className="underline font-semibold">aisalary.neevs.io</a>
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="text-center py-12 px-4">
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-4">
@@ -282,7 +349,9 @@ export default function App() {
               <CardContent className="p-0">
                 <Tabs value={inputMode} onValueChange={(v) => setInputMode(v as 'upload' | 'manual')}>
                   <TabsList className="w-full rounded-t-lg rounded-b-none">
-                    <TabsTrigger value="upload">Upload Resume</TabsTrigger>
+                    <TabsTrigger value="upload" disabled={isStaticMode()}>
+                      Upload Resume {isStaticMode() && '(Disabled)'}
+                    </TabsTrigger>
                     <TabsTrigger value="manual">Manual Entry</TabsTrigger>
                   </TabsList>
 
