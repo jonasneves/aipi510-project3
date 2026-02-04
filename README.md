@@ -5,9 +5,9 @@
 
 [![Pipeline & Deploy](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml)
 
-**Live Demo:** [aisalary.neevs.io](https://aisalary.neevs.io) | [GitHub Pages (static)](https://jonasneves.github.io/aipi510-project3/) | [API Docs](https://aisalary.neevs.io/api/docs)
+**Demo:** [jonasneves.github.io/aipi510-project3](https://jonasneves.github.io/aipi510-project3/) | **Reports:** [EDA](https://jonasneves.github.io/aipi510-project3/reports/) | [MLflow](https://jonasneves.github.io/aipi510-project3/mlflow/)
 
-**Reports:** [EDA](https://jonasneves.github.io/aipi510-project3/reports/) | [MLflow](https://jonasneves.github.io/aipi510-project3/mlflow/)
+**Live API** (when active): [aisalary.neevs.io](https://aisalary.neevs.io) | [API Docs](https://aisalary.neevs.io/api/docs)
 
 ## Overview
 
