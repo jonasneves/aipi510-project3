@@ -64,6 +64,11 @@ permissions:
   id-token: write
   contents: read
 
+# Prevent concurrent deployments
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
 jobs:
   collect:
     runs-on: ubuntu-24.04-arm
@@ -695,7 +700,9 @@ jobs:
     if: ${{ github.event_name != 'pull_request' && always() }}
     runs-on: ubuntu-24.04-arm
     permissions:
-      contents: write  # Required to push to gh-pages branch
+      contents: read
+      pages: write
+      id-token: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -779,9 +786,14 @@ jobs:
           echo "Publishing contents:"
           find site_root -maxdepth 2 -type f | sort
 
-      - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site_root
-          publish_branch: gh-pages
+          path: './site_root'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
