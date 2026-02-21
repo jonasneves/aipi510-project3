@@ -1,0 +1,3 @@
+# Proxy /api/* to the Render backend so frontend makes same-origin requests
+# Replace the URL below with your actual Render service URL after deploying
+/api/* https://aisalary-api.onrender.com/api/:splat 200

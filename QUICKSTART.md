@@ -6,8 +6,8 @@
 # Install dependencies
 pip install -r requirements.txt
 
-# Configure AWS (for LinkedIn data)
-export AWS_PROFILE=AdministratorAccess-950495744806
+# Configure AWS
+export AWS_PROFILE=your-aws-profile
 ```
 
 ## Basic Workflow
@@ -15,12 +15,12 @@ export AWS_PROFILE=AdministratorAccess-950495744806
 ### 1. Collect Data
 
 ```bash
-# Collect from all sources
+# Collect from public API sources
 python -m src.main collect --source all
 
 # Or specific sources
-python -m src.main collect --source linkedin
 python -m src.main collect --source h1b
+python -m src.main collect --source adzuna
 ```
 
 ### 2. Merge Data
@@ -33,7 +33,7 @@ python -m src.main merge
 tail -f logs/data_merge_*.log
 ```
 
-Expected output: ~24,000-25,000 records from H1B, LinkedIn, and Adzuna.
+Expected output: ~26,000+ records from H1B and Adzuna.
 
 ### 3. Generate EDA Report
 
@@ -70,8 +70,7 @@ python -m src.main predict \
 | Source | Status | Priority | Records |
 |--------|--------|----------|---------|
 | H1B | ✓ | 1 | ~10,000 |
-| LinkedIn | ✓ | 1 | ~1,000+ |
-| Adzuna | ✓ | 2 | ~16,500 |
+| Adzuna | ✓ | 1 | ~16,500 |
 | BLS | ✗ Disabled | - | 7 (too few) |
 
 ## File Locations
@@ -91,26 +90,11 @@ Edit `configs/data_sources.yaml` to:
 - Modify merge strategy
 - Change validation rules
 
-## Automation
-
-Add to cron/GitHub Actions:
-
-```bash
-# Daily: Collect LinkedIn + merge + EDA
-python -m src.main collect --source linkedin
-python -m src.main merge
-python -m src.main eda
-```
-
 ## Troubleshooting
 
 **No data after merge?**
 - Check `logs/data_merge_*.log`
 - Verify source files in `data/raw/`
-
-**LinkedIn data missing?**
-- Check AWS credentials
-- Run: `aws s3 ls s3://ai-salary-predictor/`
 
 **Low quality scores?**
 - Check merge report: `cat data/processed/merge_report_*.json`

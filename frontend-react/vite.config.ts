@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
-  base: mode === 'production' ? '/aipi510-project3/' : '/',
+  base: '/', // was '/aipi510-project3/' for GitHub Pages; Cloudflare Pages serves from root
   server: {
     port: 5173,
     proxy: {

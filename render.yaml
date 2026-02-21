@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: aisalary-api
+    runtime: python
+    region: virginia  # closest to us-east-1 where S3 bucket lives
+    plan: free        # note: free tier spins down after 15min inactivity (~1-2min cold start)
+    buildCommand: pip install -r requirements-runtime.txt && python -m spacy download en_core_web_sm
+    startCommand: python scripts/render_download_model.py && uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: AWS_REGION
+        value: us-east-1
+      - key: S3_BUCKET
+        value: ai-salary-predictor
+      - key: AWS_ACCESS_KEY_ID
+        sync: false  # set in Render dashboard
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false  # set in Render dashboard
