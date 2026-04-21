@@ -2,6 +2,7 @@
 
 [![API Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/api&label=API)](https://aisalary.neevs.io/api)
 [![App Status](https://img.shields.io/endpoint?url=https://aisalary.neevs.io/api/badge/app&label=App)](https://aisalary.neevs.io)
+[![Duke AIPI 510](https://img.shields.io/badge/Duke-AIPI%20510-012169)](https://masters.pratt.duke.edu/)
 
 [![Pipeline & Deploy](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml/badge.svg)](https://github.com/jonasneves/aipi510-project3/actions/workflows/pipeline-and-deploy.yml)
 
